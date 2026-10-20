@@ -52,6 +52,7 @@ async function burnJob(){
 // ---- verification
 const parseMemo=tx=>{for(const ix of tx.transaction.message.instructions){if(ix.programId.equals(C.MEMO)){const s=typeof ix.parsed==='string'?ix.parsed:'';if(s.startsWith('primordial:v1:'))return JSON.parse(s.slice(14));}}return null;};
 async function verify(sig){
+  if(!live)throw new Error('payments are paused until the treasury is funded');
   if(typeof sig!=='string'||sig.length<60||sig.length>100)throw new Error('bad signature');
   if(ledger.used[sig])throw new Error('signature already used');
   let tx=null;for(let i=0;i<20&&!tx;i++){tx=await conn.getParsedTransaction(sig,{commitment:'confirmed',maxSupportedTransactionVersion:0});if(!tx)await new Promise(r=>setTimeout(r,500));}
@@ -107,7 +108,7 @@ http.createServer(async(req,res)=>{
   try{
   if(p==='/api/stream'){res.writeHead(200,{'content-type':'text/event-stream','cache-control':'no-cache',connection:'keep-alive'});res.write(`event: tick\ndata: ${JSON.stringify({t:W.tick})}\n\n`);clients.add(res);req.on('close',()=>clients.delete(res));return;}
   if(p==='/api/snapshot'){const evs=ledger.events.filter(e=>e.at>=snapshot.tick);res.writeHead(200,{'content-type':'application/json'});return res.end(`{"tick":${snapshot.tick},"serverTick":${W.tick},"events":${JSON.stringify(evs)},"state":${snapshot.state}}`);}
-  if(p==='/api/config')return json(res,{rpc:'/api/rpc',cluster:process.env.CLUSTER||(/127\.0\.0\.1|localhost/.test(C.RPC)?'localnet':'devnet'),treasury:treasury.publicKey.toBase58(),mint:MINT.toBase58(),prices:PRICES,foodBurn:FOOD_BURN,traitBurn:P.TRAIT_BURN,cfg:CFG,hz:HZ,seed:ledger.seed,ticker:TICKER,publicUrl:PUBLIC_URL,tree:P.TREE});
+  if(p==='/api/config')return json(res,{rpc:'/api/rpc',cluster:process.env.CLUSTER||(/127\.0\.0\.1|localhost/.test(C.RPC)?'localnet':'devnet'),treasury:treasury.publicKey.toBase58(),mint:MINT?MINT.toBase58():null,chainReady:live,prices:PRICES,foodBurn:FOOD_BURN,traitBurn:P.TRAIT_BURN,cfg:CFG,hz:HZ,seed:ledger.seed,ticker:TICKER,publicUrl:PUBLIC_URL,tree:P.TREE});
   if(p==='/api/ledger'){const L2=Object.assign({},ledger);delete L2.used;delete L2.events;L2.eventCount=ledger.events.length;L2.recent=ledger.events.slice(-30);L2.scores=W.scores().slice(0,10);L2.epochs=W.epochs.slice(-5);return json(res,L2);}
   if(p==='/api/rpc'&&req.method==='POST'){let b='';for await(const ch of req){b+=ch;if(b.length>4096)break;}let j;try{j=JSON.parse(b);}catch(e){return json(res,{error:'bad json'},400);}
     const ok=['getLatestBlockhash','getSignatureStatuses','getBalance','getAccountInfo','getTokenAccountBalance'];const ip=req.headers['x-forwarded-for']||req.socket.remoteAddress;
@@ -126,5 +127,10 @@ http.createServer(async(req,res)=>{
   res.writeHead(200,{'content-type':MIME[path.extname(f)]||'application/octet-stream'});fs.createReadStream(__dirname+f).pipe(res);
   }catch(e){console.error(e);json(res,{ok:false,error:'server error'},500);}
 }).listen(PORT,()=>console.log('primordial on http://localhost:'+PORT));
-(async()=>{treasury=C.load('treasury');await C.fund(treasury).catch(e=>console.error('airdrop',e.message));mintInfo=await C.setupMint(treasury);MINT=new web3.PublicKey(mintInfo.mint);
-  live=true;console.log('chain ready',C.RPC,'treasury',treasury.publicKey.toBase58(),'mint',mintInfo.mint);setInterval(burnJob,BURN_INTERVAL*1000);})();
+treasury=C.load('treasury');
+// Chain setup never crashes the site. If the treasury is unfunded (devnet faucet limits), retry every 5 minutes.
+async function chainSetup(){try{await C.fund(treasury).catch(e=>console.error('airdrop failed:',e.message.slice(0,80)));mintInfo=await C.setupMint(treasury);MINT=new web3.PublicKey(mintInfo.mint);
+  live=true;console.log('chain ready, treasury',treasury.publicKey.toBase58(),'mint',mintInfo.mint);setInterval(burnJob,BURN_INTERVAL*1000);}
+  catch(e){console.error('chain setup pending (treasury needs devnet SOL):',e.message.slice(0,80));setTimeout(chainSetup,300000);}}
+chainSetup();
+process.on('unhandledRejection',e=>console.error('unhandled',e&&e.message));
