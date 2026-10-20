@@ -156,10 +156,10 @@ http.createServer(async(req,res)=>{
   let m;
   if((m=p.match(/^\/og\/(species|event|hall)\/(\d+)\.png$/))){const d=cardData(m[1],+m[2]);if(!d||!canvasMod){res.writeHead(200,{'content-type':'image/png'});return fs.createReadStream(__dirname+'/icons/og-fallback.png').pipe(res);}res.writeHead(200,{'content-type':'image/png','cache-control':'max-age=60'});return res.end(ogPng(d));}
   if((m=p.match(/^\/(s|e|h)\/(\d+)$/)))return sharePage(res,{s:'species',e:'event',h:'hall'}[m[1]],+m[2],req.headers.host);
-  let f=p==='/'?'/index.html':p==='/how'?'/how.html':p;if(f.startsWith('/vendor/web3.js'))f='/node_modules/@solana/web3.js/lib/index.iife.min.js';
+  let f=p==='/'?'/index.html':p==='/how'?'/how.html':p==='/whitepaper'?'/whitepaper.html':p;if(f.startsWith('/vendor/web3.js'))f='/node_modules/@solana/web3.js/lib/index.iife.min.js';
   if(/^\/icons\/(favicon\.ico|favicon-32\.png|apple-touch-icon\.png|icon-512\.png|og-fallback\.png)$/.test(f)){res.writeHead(200,{'content-type':f.endsWith('.ico')?'image/x-icon':'image/png','cache-control':'max-age=86400'});return fs.createReadStream(__dirname+f).pipe(res);}
   if(f==='/favicon.ico'){res.writeHead(200,{'content-type':'image/x-icon'});return fs.createReadStream(__dirname+'/icons/favicon.ico').pipe(res);}
-  const allowed=['/index.html','/style.css','/sim.js','/pvp.js','/organism.js','/card.js','/app.js','/audio.js','/onboarding.js','/how.html','/audio/ambient.mp3','/node_modules/@solana/web3.js/lib/index.iife.min.js'];
+  const allowed=['/index.html','/style.css','/sim.js','/pvp.js','/organism.js','/card.js','/app.js','/audio.js','/onboarding.js','/how.html','/whitepaper.html','/audio/ambient.mp3','/node_modules/@solana/web3.js/lib/index.iife.min.js'];
   if(!allowed.includes(f)){res.writeHead(404);return res.end('not found');}
   if(f==='/index.html'){res.writeHead(200,{'content-type':MIME['.html'],'cache-control':'no-cache'});return res.end(indexHtml());}
   res.writeHead(200,{'content-type':MIME[path.extname(f)]||'application/octet-stream','cache-control':u.query.v?'public, max-age=31536000, immutable':'no-cache'});fs.createReadStream(__dirname+f).pipe(res);

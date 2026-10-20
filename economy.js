@@ -9,7 +9,7 @@ const E={
   PAYOUT_PER_DAY:0.5, YIELD_SHARE:0.85,WEIGHT_POW:0.6, SPLIT:[0.5,0.3,0.2], BONUS_MIN_AGE_H:2,
   INTERV_TO_POOL:0.4, CREATOR_TO_POOL:0.7, TARGET_ROI:1.2, P_MIN:1, P_MAX:25, P_START:+process.env.P_START||5,
   FREE_WEIGHT:0.25, FREE_CAP:0.10, WALLET_CAP:0.10, MAX_PAID_PER_WALLET_DAY:10, FREE_MIN_USD:5, FREE_MIN_AGE_DAYS:7,
-  SOL_USD:+process.env.SOL_USD||150, SHIELD_S:600, COOLDOWN_S:{meteor:300,cold:180,toxic:180},
+  SOL_USD:+process.env.SOL_USD||150, SHIELD_S:600,ZONE_BONUS:0.05,ZONE_MAX:3, COOLDOWN_S:{meteor:300,cold:180,toxic:180},
 };
 E.SOUP_USD=E.SOL_USD/(+process.env.MOCK_RATE||100000);
 function init(ledger){
@@ -23,9 +23,13 @@ function onRelease(eco,ev,tick,costUsd){const r=ev.sp;eco.born[r]=tick;eco.owner
   if(!ev.free){eco.day.paidCost+=costUsd;eco.day.paidN++;eco.day.walletPaid[ev.owner]=(eco.day.walletPaid[ev.owner]||0)+1;}}
 // every second of game time (HZ ticks): credit creature-seconds to each released lineage root
 function accrue(eco,W){const cnt=new Map();for(const k of W.c){const ro=W.species[k.sp].root;if(eco.owner[ro]!==undefined)cnt.set(ro,(cnt.get(ro)||0)+1);}
-  for(const [r,n] of cnt){eco.hour[r]=(eco.hour[r]||0)+n;eco.season[r]=(eco.season[r]||0)+n;}}
+  eco.hz=eco.hz||{};eco.hs=eco.hs||{};
+  for(const [r,n] of cnt){eco.hour[r]=(eco.hour[r]||0)+n;eco.season[r]=(eco.season[r]||0)+n;
+    // territory: average zones held over the hour lifts the hourly yield weight by 5% per zone, at most 3 zones. The daily top-3 bonus ignores zones.
+    const z=W.zonesOf?Math.min(E.ZONE_MAX,W.zonesOf(+r)):0;eco.hz[r]=(eco.hz[r]||0)+z;eco.hs[r]=(eco.hs[r]||0)+1;}}
+const zoneMult=(eco,r)=>1+E.ZONE_BONUS*((eco.hz&&eco.hs&&eco.hs[r])?eco.hz[r]/eco.hs[r]:0);
 // weight = creature-seconds to the power 0.6: diminishing returns (tuned in econ/REPORT.md)
-function weights(eco){const ent=[];let paid=0,free=0;for(const r in eco.hour){const w=Math.pow(eco.hour[r],E.WEIGHT_POW);if(eco.free[r]){free+=w*E.FREE_WEIGHT;ent.push([r,w*E.FREE_WEIGHT,1]);}else{paid+=w;ent.push([r,w,0]);}}
+function weights(eco){const ent=[];let paid=0,free=0;for(const r in eco.hour){const w=Math.pow(eco.hour[r],E.WEIGHT_POW)*zoneMult(eco,r);if(eco.free[r]){free+=w*E.FREE_WEIGHT;ent.push([r,w*E.FREE_WEIGHT,1]);}else{paid+=w;ent.push([r,w,0]);}}
   let fs=1;if(free>0&&free/(paid+free)>E.FREE_CAP)fs=paid>0?(E.FREE_CAP*paid/(1-E.FREE_CAP))/free:1;
   const out=ent.map(([r,w,f])=>[r,f?w*fs:w]);const tot=out.reduce((a,b)=>a+b[1],0);return {out,tot};}
 function closeHour(eco,ledger,tick){
@@ -38,7 +42,7 @@ function closeHour(eco,ledger,tick){
       if(lam<=0)continue;eco.day.walletEarned[o]=had+lam;eco.earned[r]=(eco.earned[r]||0)+lam;eco.owed[o]=(eco.owed[o]||0)+lam;rec.yield+=lam;
       if(!eco.free[r])eco.day.paidPayout+=lam/1e9*E.SOL_USD;}
     ledger.pool+=rec.returned+(yb-rec.yield-rec.returned);} // rounding dust and capped excess return to the pool
-  eco.hours.push(rec);if(eco.hours.length>48)eco.hours.shift();eco.hour={};
+  eco.hours.push(rec);if(eco.hours.length>48)eco.hours.shift();eco.hour={};eco.hz={};eco.hs={};
   // forget lineages that died long ago
   return rec;}
 function closeSeason(eco,ledger,tick,W){
@@ -62,5 +66,5 @@ function publicView(eco,ledger){const {out,tot}=weights(eco);const budget=Math.f
   const est={};for(const [r,w] of out)est[r]=tot>0?Math.floor(budget*w/tot):0;
   return {price:eco.price,priceLamports:priceLamports(eco),priceTokens:priceTokens(eco),yAvg:eco.yAvg,solUsd:E.SOL_USD,bonusPot:eco.bonusPot,hourBudget:budget,est,earned:eco.earned,free:eco.free,
     hours:eco.hours.slice(-6),seasons:eco.seasons.slice(-4),cooldown:{meteor:cooldown(eco,'meteor',Date.now()),cold:cooldown(eco,'cold',Date.now()),toxic:cooldown(eco,'toxic',Date.now())},
-    rules:{hourTicks:E.HOUR_TICKS,seasonHours:E.SEASON_HOURS,freeWeight:E.FREE_WEIGHT,freeCap:E.FREE_CAP,walletCap:E.WALLET_CAP,shieldS:E.SHIELD_S,maxPaid:E.MAX_PAID_PER_WALLET_DAY,targetRoi:E.TARGET_ROI,pMin:E.P_MIN,pMax:E.P_MAX,freeMinUsd:E.FREE_MIN_USD,freeMinAgeDays:E.FREE_MIN_AGE_DAYS,bonusMinAgeH:E.BONUS_MIN_AGE_H}};}
+    rules:{hourTicks:E.HOUR_TICKS,seasonHours:E.SEASON_HOURS,freeWeight:E.FREE_WEIGHT,freeCap:E.FREE_CAP,walletCap:E.WALLET_CAP,shieldS:E.SHIELD_S,zoneBonus:E.ZONE_BONUS,zoneMax:E.ZONE_MAX,maxPaid:E.MAX_PAID_PER_WALLET_DAY,targetRoi:E.TARGET_ROI,pMin:E.P_MIN,pMax:E.P_MAX,freeMinUsd:E.FREE_MIN_USD,freeMinAgeDays:E.FREE_MIN_AGE_DAYS,bonusMinAgeH:E.BONUS_MIN_AGE_H}};}
 module.exports={E,init,usdToLam,priceLamports,priceTokens,onRelease,onTick,cooldown,publicView,weights};

@@ -9,8 +9,11 @@ Hundreds of microorganisms, each driven by a small neural network, eat, breed, m
 - **Brains.** 9 sensory inputs, 7 hidden neurons, 3 motor outputs. Children inherit a mutated copy. Selection is the only teacher.
 - **Interventions.** Food bloom, meteor, cold front, toxic bloom, and releasing a named species. Each is a SOL transfer to the treasury with a memo, verified on chain by the server (amount, recipient, memo, single use).
 - **Evolution tree.** Released lineages unlock traits through in-sim milestones. The releaser activates a trait by burning SOUP. Branches trade off against each other.
-- **Survival pool.** 20 percent of release fees fund a pool paid each season to the top three surviving released lineages, scored from the log.
-- **Burn.** All other fees buy back and burn SOUP. Burns and world-hash commits are posted on chain and linked on the site.
+- **Survival economy** (`economy.js`). The prize pool is funded from outside the game: 70% of SOUP creator fees and 40% of intervention fees. Each day half the pool is paid out hourly. 85% of each hour goes to living released lineages, weighted by (creature-seconds)^0.6, with +5% per territory zone held (up to 3 zones) and free releases at 1/4 weight. 15% goes to a daily top-3 bonus with a 2 hour minimum age.
+- **Release price.** Set once a day so that the average paid release got back about 1.2x yesterday, with a floor of $1 and a cap of $25. Paying is a SOUP burn, or SOL that is used for buyback and burn.
+- **Limits.** One free release per wallet per day (wallet at least 7 days old, or holding $5 of SOUP). At most 10 paid releases per wallet per day. No wallet earns more than 10% of a day's yield. 10 minute newborn shield. Disaster cooldowns.
+- **Burn.** Release prices, trait unlocks and 60% of intervention fees buy back and burn SOUP. Burns and world-hash commits are posted on chain and linked on the site.
+- **Docs.** Plain-English rules: `/how`. Full rules, formula, simulation results and risks: `/whitepaper`. Simulation code and report: `econ/` (`REPORT.md`, `SIMPLE.md`).
 
 ## Run locally
 ```
@@ -21,7 +24,7 @@ PUBLIC_URL=http://localhost:8765 npm start
 Open http://localhost:8765. Configuration is in `.env.example`. Mainnet RPC URLs are refused by this build.
 
 ## Tests
-`node e2e-player.js` runs payments, burns and rejection cases against the configured cluster. `node e2e-sync.js` opens two browsers, one late, and checks that their world hashes match the server.
+`node e2e-player.js` runs payments, burns, release pricing, the free release gate, cooldowns and an hourly yield payout against the configured cluster (use `HOUR_TICKS=600 PAYOUT_INTERVAL_S=10` for a fast run). `node e2e-sync.js` opens two browsers, one late, and checks that their world hashes match the server.
 
 ## Status
 Test network prototype. The buyback is a dry run: no swap is executed, and treasury test tokens are burned in its place. See DESIGN.md for the full design and open risks.

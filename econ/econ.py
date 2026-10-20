@@ -9,17 +9,18 @@ PARAMS=dict(creator_to_pool=0.7, interv_to_pool=0.4, yield_share=0.85, bonus_spl
             payout_rate=0.5,     # fraction of pool balance paid out per day (spread hourly)
             target_roi=1.2, p_min=1.0, p_max=25.0, free_weight=0.25, free_cap=0.10, wallet_cap=0.10,
             max_paid_per_wallet=10)
-def run(vol,fee,n_int,int_px,base_rel,days=30,mix=(.2,.4,.3,.1),free_per_day=None,sybil=0,whale_mult=1,P=PARAMS,seed=0):
-    rnd=random.Random(seed); bal=0.0; price=5.0; hist=[]; per_rel=[]; players={}
+def run(vol,fee,n_int,int_px,base_rel,days=30,mix=(.2,.4,.3,.1),free_per_day=None,sybil=0,whale_mult=1,P=PARAMS,seed=0,demand=None,vol_fn=None,seed_pool=0.0,boost_days=0,boost_share=1.0,price0=5.0):
+    rnd=random.Random(seed); bal=float(seed_pool); price=price0; yavg=None; hist=[]; per_rel=[]; players={}
     free_per_day = int(base_rel*0.5) if free_per_day is None else free_per_day
     burned=[]
     for d in range(days):
-        inflow=vol*fee*P['creator_to_pool']+n_int*int_px*P['interv_to_pool']
+        v=vol_fn(d) if vol_fn else vol; cshare=boost_share if d<boost_days else P['creator_to_pool']
+        inflow=v*fee*cshare+n_int*int_px*P['interv_to_pool']
         buyback=n_int*int_px*(1-P['interv_to_pool'])
         bal+=inflow; out=bal*P['payout_rate']; bal-=out
         y_budget=out*P['yield_share']; b_budget=out-y_budget
         # demand responds to expected ROI (players see a published price & last-day ROI)
-        n_paid=max(1,int(round(base_rel)))
+        n_paid=max(1,int(round(demand(d,yavg,price) if demand else base_rel)))
         ents=[]  # (wallet, type, paid, weight)
         for i in range(n_paid):
             t=rnd.choices(['casual','starter','skilled','whale'],mix)[0]
@@ -56,7 +57,8 @@ def run(vol,fee,n_int,int_px,base_rel,days=30,mix=(.2,.4,.3,.1),free_per_day=Non
             per_rel.append((e[1],e[2],cost,p,d))
             pl=players.setdefault(e[0],[e[1],0,0]); pl[1]+=cost; pl[2]+=p
         burned.append(price*len([e for e in ents if e[2]])+buyback)
-        hist.append(dict(day=d,bal=bal,inflow=inflow,out=out,price=price,paid=n_paid,payout=sum(pay)))
+        pc=sum(r[2] for r in per_rel if r[4]==d and r[1]); pp=sum(r[3] for r in per_rel if r[4]==d and r[1]); yavg=pp/pc if pc else yavg
+        hist.append(dict(yavg=yavg,day=d,bal=bal,inflow=inflow,out=out,price=price,paid=n_paid,payout=sum(pay)))
         # auto price for tomorrow from trailing 24h: expected payout per paid weight / target ROI
         paid_pay=sum(p for e,p in zip(ents,pay) if e[2]); n=sum(1 for e in ents if e[2])
         price=min(P['p_max'],max(P['p_min'],paid_pay/n/P['target_roi']))

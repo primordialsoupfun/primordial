@@ -59,15 +59,64 @@ Every released lineage has a tree. Nodes become eligible through in-sim mileston
 - Each trait changes the drawing: double membrane, plate lattice, longer or twin flagella, eyespot, antennae, vacuoles, dotted capsule, fringe, mouthparts, green symbionts.
 - **Balance:** every bonus has a cost, and the neural network still decides behaviour. A trait improves the odds but does not guarantee survival. A disaster or a better-adapted wild lineage can still wipe out a fully evolved species.
 
-## Survival Prize Pool
-- 20 percent of release fees (`PRIZE_SHARE`) goes to the pool. Everything else goes to buyback and burn.
-- A season lasts `EPOCH_TICKS`. At season close the sim scores each released root lineage as descendants alive x 10 + floor(ticks survived / 100). The top three releasers are paid 50, 30 and 20 percent of the pool, automatically, by a SystemProgram transfer with memo `primordial:prize:<season>:<place>:<species>`.
-- Scoring is computed inside the deterministic sim, so anyone can reproduce it from the seed and the log.
-- The site shows the "Hall of Survivors" with current standings, past seasons, payout tx links and Share on X.
+## Survival economy (replaces the season prize pool)
+Implemented in `economy.js`, server side only. The deterministic sim only adds the newborn shield flag carried by release events. Tuned in `econ/` (see `econ/REPORT.md`).
+
+**Pool inflows**
+- 70% of SOUP creator fees. Not wired yet, because the token is not live.
+- 40% of intervention fees. The other 60% goes to buyback and burn.
+- Release prices and trait burns are burned in full.
+
+**Payouts**
+- Half the pool is paid each day, in 24 hourly slices.
+- **Hourly yield (85%).** Weight per released root lineage = (creature-seconds this hour)^0.6 x (1 + 0.05 x average zones held, at most 3) x 0.25 if the release was free.
+  - All free releases together are capped at 10% of the yield.
+  - No wallet gets more than max(10%, 1/number of wallets) of a day's yield. Any excess returns to the pool.
+- **Daily bonus (15%).** Paid 50/30/20 to the top three lineages by season creature-seconds, with free releases weighted 0.25 and a minimum age of 2 hours. Territory does not count toward the bonus.
+- Owed balances are sent in batched transfers once they reach 0.001 SOL.
+
+**Release price**
+- Recomputed daily: yesterday's payouts to paid releases / yesterday's paid releases / 1.2.
+- Clamped to $1 to $25. The starting price is $5.
+- The site shows "Today's release price $X, yesterday avg return Yx".
+
+**Limits**
+- Free release: 1 per wallet per UTC day. The wallet must be at least 7 days old or hold $5 of SOUP.
+- At most 10 paid releases per wallet per day.
+- Released lineages are shielded from disasters for 10 minutes. This is done via `ev.shield`, so older logs replay unchanged.
+- Cooldowns: meteor 300 s; cold front and toxic bloom 180 s each.
+
+**Parameters**
+
+| Name | Value |
+| --- | --- |
+| `PAYOUT_PER_DAY` | 0.5 |
+| `YIELD_SHARE` | 0.85 |
+| `WEIGHT_POW` | 0.6 |
+| `ZONE_BONUS` | 0.05 |
+| `ZONE_MAX` | 3 |
+| `TARGET_ROI` | 1.2 |
+| `P_MIN` / `P_MAX` | 1 / 25 |
+| `FREE_WEIGHT` | 0.25 |
+| `FREE_CAP` | 0.10 |
+| `WALLET_CAP` | 0.10 |
+| `SHIELD_S` | 600 |
+
+`HOUR_TICKS` and `SEASON_HOURS` are env-configurable for tests.
+
+**Simulated results.** Medium game, see the whitepaper for the assumptions:
+- Average return about 1.2x. The typical player is below 1x, and about a third of players come out ahead.
+- Skilled players clearly beat casual players. Recommended start narrows the gap.
+- With players who react to yesterday's return, the price drifts to the $1 floor and returns drift toward 1.0x once demand exceeds capacity.
+- Launch week needs a bootstrap. Proposed: seed the pool with $300 and send 100% of creator fees to the pool for 7 days. Not yet decided.
+
+**Creator fee source.** pump.fun fee page, last updated 17 October 2026:
+- 0.300% on the bonding curve.
+- 0.950% to 0.050% on PumpSwap canonical pools, depending on market cap.
 
 ## Gambling and fairness notes (get legal review before mainnet)
 - Paying to enter with a chance of winning a prize can count as gambling or a lottery in many US states.
-  - Mitigations: outcomes depend on measurable, player-influenced strategy (placement, timing, trait choices, feeding) rather than pure chance. Keep the share small (20 percent of release fees only). Consider a free entry route (a free weekly release slot) and geo-restrictions.
+  - Mitigations: outcomes depend on measurable, player-influenced strategy (placement, timing, trait choices, feeding) rather than pure chance. A free daily release is live (1/4 weight). Consider geo-restrictions.
   - Even so, the sim contains seeded randomness, so the skill-versus-chance question remains a real legal risk.
 - Burning for traits gives no direct monetary return. Prizes come only from the pool, never from token holders.
 - The token should be burn-only. Do not route revenue to holders and do not market it as an investment.
