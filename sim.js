@@ -6,6 +6,9 @@ const R=430,CX=450,CY=450,NI=9,NH=7,NO=3,GLEN=NI*NH+NH+NH*NO+NO,MAXPOP=1100,CELL
 const CFG={epochTicks:3000,prizeShare:0.2,split:[0.5,0.3,0.2]};
 class RNG{constructor(s){this.a=s>>>0;}next(){this.a=(this.a+0x6D2B79F5)>>>0;let t=this.a;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296;}}
 const act=x=>x/(1+Math.abs(x));
+// Compact, exact serialisation of Float32Array: base64 of the raw little-endian bytes. Old checkpoints (plain arrays) still load.
+const f32enc=f=>{const b=new Uint8Array(f.buffer,f.byteOffset,f.byteLength);if(typeof Buffer!=='undefined')return Buffer.from(b).toString('base64');let s='';for(let i=0;i<b.length;i++)s+=String.fromCharCode(b[i]);return btoa(s);};
+const f32dec=v=>{if(typeof v!=='string')return Float32Array.from(v);let b;if(typeof Buffer!=='undefined'){const x=Buffer.from(v,'base64');b=new Uint8Array(x.length);b.set(x);}else{const s=atob(v);b=new Uint8Array(s.length);for(let i=0;i<s.length;i++)b[i]=s.charCodeAt(i);}return new Float32Array(b.buffer);};
 // Skill tree. lock = mutually exclusive branch partner. req = milestone.
 const TREE={
   armor1:{branch:'Armor',tier:1,label:'Thick membrane',lock:'loco1',req:{gen:4}},
@@ -46,6 +49,11 @@ class World{
     if(parent&&parent.name)sp.name=parent.name;
     this.species.push(sp);return sp;
   }
+  // v3 rules switch on at cfg.v3From, a fixed tick recorded by the server, so earlier history replays unchanged.
+  v3(){const f=this.cfg.v3From;return f!=null&&this.tick>=f;}
+  // A release starts from a proven brain: a mutated copy of a creature from the most populous living species.
+  provenGenome(){let best=null;for(const s of this.species)if(s.count>0&&(!best||s.count>best.count))best=s;if(!best)return this.randGenome();
+    const ms=[];for(const k of this.c)if(k.sp===best.id)ms.push(k);const k=ms[(this.rnd()*ms.length)|0];return this.mut(k.g,.05);}
   has(sp,t){return this.species[sp].traits.indexOf(t)>=0;}
   spawn(g,sp,x,y,e){
     if(this.c.length>=MAXPOP)return null;
@@ -69,7 +77,7 @@ class World{
       this.food=this.food.filter(f=>{const dx=f.x-cx,dy=f.y-cy;return dx*dx+dy*dy>rr*rr;});this.craters.push({x:cx,y:cy,r:rr,t:this.tick});this.markSurvivors();}
     if(ev.type==='cold'){this.cold=700;this.disasters++;this.pendingSurvive=this.tick+700;}
     if(ev.type==='toxic'){let cx=ev.x,cy=ev.y;if(cx==null)[cx,cy]=this.rp();this.toxic.push({x:cx,y:cy,r:140,until:this.tick+1200});this.disasters++;this.pendingSurvive=this.tick+1200;}
-    if(ev.type==='release'){const sp=this.newSpecies(null,this.randGenome(),String(ev.name||'Unnamed').slice(0,24),ev.owner||'anon');
+    if(ev.type==='release'){const sp=this.newSpecies(null,this.v3()?this.provenGenome():this.randGenome(),String(ev.name||'Unnamed').slice(0,24),ev.owner||'anon');
       let cx=ev.x,cy=ev.y;if(cx==null)[cx,cy]=this.rp();ev.sp=sp.id;if(ev.shield)sp.shieldUntil=this.tick+ev.shield;
       for(let i=0;i<40;i++)this.spawn(this.mut(sp.g,.1),sp.id,cx+(r()-.5)*60,cy+(r()-.5)*60,1.4);}
     if(ev.type==='trait'){const S=this.species[ev.sp];
@@ -148,11 +156,11 @@ class World{
     for(const k of this.c){mix(k.id);mix(Math.round(k.x*100));mix(Math.round(k.y*100));mix(Math.round(k.e*1e4));}
     mix(this.food.length);mix(this.species.length);return('0000000'+h.toString(16)).slice(-8);}
   toJSON(){const o={};for(const key of Object.keys(this)){if(key==='r')o.r=this.r.a;else o[key]=this[key];}
-    o.c=this.c.map(k=>Object.assign({},k,{g:Array.from(k.g),act:Array.from(k.act)}));
-    o.species=this.species.map(s=>Object.assign({},s,{g:Array.from(s.g)}));return o;}
+    o.c=this.c.map(k=>Object.assign({},k,{g:f32enc(k.g),act:f32enc(k.act)}));
+    o.species=this.species.map(s=>Object.assign({},s,{g:f32enc(s.g)}));return o;}
   static fromJSON(o){const w=Object.create(World.prototype);Object.assign(w,o);w.r=new RNG(0);w.r.a=o.r;
-    w.c=o.c.map(k=>Object.assign({},k,{g:Float32Array.from(k.g),act:Float32Array.from(k.act)}));
-    w.species=o.species.map(s=>Object.assign({},s,{g:Float32Array.from(s.g)}));return w;}
+    w.c=o.c.map(k=>Object.assign({},k,{g:f32dec(k.g),act:f32dec(k.act)}));
+    w.species=o.species.map(s=>Object.assign({},s,{g:f32dec(s.g)}));return w;}
 }
 g.Primordial={World,R,CX,CY,NI,NH,NO,TREE,TRAIT_BURN,CFG};
 if(typeof module!=='undefined'){module.exports=g.Primordial;require('./pvp.js')(g.Primordial);}

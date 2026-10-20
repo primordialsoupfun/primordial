@@ -35,7 +35,7 @@ async function boot(){
   const dl=qs.get('species');if(dl!=null)setTimeout(()=>locate(+dl,true),300);
 }
 async function resync(){const s=await (await fetch('/api/snapshot')).json();W=P.World.fromJSON(s.state);evAt=new Map();for(const e of s.events)addEv(e);target=s.serverTick;
-  while(W.tick<target)stepOne();window.__world=W;perf.joinMs=performance.now()-T0;perf.joinTicks=target-s.tick;}
+  while(W.tick<target)stepOne();window.__world=W;if(hashOk==null)setSync('Live. Checking agreement with the server every few seconds.',true);perf.joinMs=performance.now()-T0;perf.joinTicks=target-s.tick;}
 const perf=window.__perf={step:0,steps:0,draw:0,draws:0,joinMs:0,frames:0};const T0=performance.now();
 const speed={n:0,at:performance.now(),hi:0,ok:0};
 function stepOne(){speed.n++;const evs=evAt.get(W.tick)||[];const t=performance.now();W.step(evs);perf.step+=performance.now()-t;perf.steps++;evAt.delete(W.tick-1);
@@ -93,7 +93,7 @@ function sprite(sp,root,size,z,ph,ang){const zb=z;
   const key=zb+'|'+sp.id+'|'+sp.traits.join(',')+'|'+size+'|'+ph+'|'+ang;let e=SPR.get(key);if(e)return e;
   const k=zb*DPR,half=Math.ceil(size*4.2*k)+2,cv=document.createElement('canvas');cv.width=cv.height=half*2;const c=cv.getContext('2d');
   const a=ang*Math.PI/8;c.setTransform(k,0,0,k,half,half);O.draw(c,{x:0,y:0,dx:Math.cos(a),dy:Math.sin(a),id:ph*5,v:.8},sp,root,size,zb,ph*6,1);
-  e={cv,half,k};if(SPR.size>20000)SPR.clear();SPR.set(key,e);return e;}
+  e={cv,half,k};SPR.px=(SPR.px||0)+cv.width*cv.height;if(SPR.px>24e6||SPR.size>12000){SPR.clear();SPR.px=cv.width*cv.height;}SPR.set(key,e);return e;}
 const ALG=new Map();
 function algaeSprite(t,rot,z){const zb=zBucket(z),key=t+'|'+rot+'|'+zb;let e=ALG.get(key);if(e)return e;
   const k=zb*DPR,half=Math.ceil(3*k)+2,cv=document.createElement('canvas');cv.width=cv.height=half*2;const c=cv.getContext('2d');c.setTransform(k,0,0,k,half,half);

@@ -52,8 +52,9 @@ function install(P){const W=P.World.prototype,{CX,CY,R}=P;
     for(const c of this.c){const zi=this.zoneIndex(c.x,c.y);if(zi===255)continue;const key=this.lineKey(c.sp),m=M[zi];m.set(key,(m.get(key)||0)+Math.round(c.e*1000));}
     Z.forEach((z,i)=>{const m=M[i];let best=-1,bb=0;for(const [key,v] of m)if(v>bb||(v===bb&&key<best)){bb=v;best=key;}
       const cur=z.h>=0?(m.get(z.h)||0):0;z.b=cur;
-      if(best>=0&&best!==z.h&&bb>=4000&&bb*100>cur*115){const prev=z.h;z.h=best;z.b=bb;z.since=this.tick;this.post({k:'zone',a:best,b:prev,z:z.name});}
-      else if(z.h>=0&&cur===0&&bb<4000){this.post({k:'lost',a:z.h,z:z.name});z.h=-1;z.since=this.tick;}});};
+      const v3=this.v3&&this.v3(),lead=v3?130:115,hold=v3?1800:0;
+      if(best>=0&&best!==z.h&&bb>=4000&&bb*100>cur*lead&&this.tick-z.since>=hold){const prev=z.h;z.h=best;z.b=bb;z.since=this.tick;this.post({k:'zone',a:best,b:prev,z:z.name});}
+      else if(z.h>=0&&cur===0&&bb<4000&&this.tick-z.since>=hold){this.post({k:'lost',a:z.h,z:z.name});z.h=-1;z.since=this.tick;}});};
   W.zonesOf=function(root){if(!this.pvp)return 0;let n=0;for(const z of this.pvp.zones)if(z.h===root)n++;return n;};
 }
 if(typeof module!=='undefined')module.exports=install;else install(g.Primordial);
