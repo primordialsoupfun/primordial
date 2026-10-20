@@ -78,3 +78,4 @@ button:disabled{cursor:default;opacity:.6}button:disabled:hover{background:trans
 .log li a{margin-left:auto}
 .mark{display:flex;align-items:center;gap:16px}.mark .seal{width:56px;height:56px;border-radius:50%;border:1px solid var(--ink);flex:none}
 .mark .title{display:block}
+.viewport canvas.bg{position:absolute;left:0;top:0;pointer-events:none}.viewport #tank{position:relative;background:transparent}

@@ -4,7 +4,7 @@ const P=window.Primordial,O=window.Organism,$=id=>document.getElementById(id);
 const qs=new URLSearchParams(location.search);
 const INK='#111314',INK2='#5b554a',RULE='#cbbfa6',RUST='#c9531a',PAPER='#f3eddb';
 const MONO='"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace',SERIF='"Iowan Old Style",Palatino,Georgia,serif';
-const DPR=Math.min(2,window.devicePixelRatio||1);
+const DPR=Math.min(1.5,window.devicePixelRatio||1);
 const tank=$('tank'),tc=tank.getContext('2d'),brain=$('brain'),bc=brain.getContext('2d'),tree=$('tree'),trc=tree.getContext('2d');
 for(const c of [tank,brain,tree]){c.dataset.w=c.width;c.dataset.h=c.height;c.width*=DPR;c.height*=DPR;}
 const srvHash=new Map();let CFG=null,W=null,evAt=new Map(),target=0,sel=null,mark=null,ledger=null,wallet=null,hashOk=null,lastHash=null;
@@ -31,13 +31,17 @@ async function boot(){
   requestAnimationFrame(loop);
 }
 async function resync(){const s=await (await fetch('/api/snapshot')).json();W=P.World.fromJSON(s.state);evAt=new Map();for(const e of s.events)addEv(e);target=s.serverTick;
-  while(W.tick<target)stepOne();window.__world=W;}
-function stepOne(){const evs=evAt.get(W.tick)||[];W.step(evs);evAt.delete(W.tick-1);
+  while(W.tick<target)stepOne();window.__world=W;perf.joinMs=performance.now()-T0;perf.joinTicks=target-s.tick;}
+const perf=window.__perf={step:0,steps:0,draw:0,draws:0,joinMs:0,frames:0};const T0=performance.now();
+function stepOne(){const evs=evAt.get(W.tick)||[];const t=performance.now();W.step(evs);perf.step+=performance.now()-t;perf.steps++;evAt.delete(W.tick-1);
   if(srvHash.has(W.tick))checkHash(W.tick);}
 function checkHash(t){if(W.tick!==t||!srvHash.has(t))return;{const h=srvHash.get(t);srvHash.delete(t);const mine=W.hash();hashOk=mine===h;window.__hashes=(window.__hashes||[]).concat([[W.tick,mine,h]]);
   setSync(hashOk?`In agreement with the canonical tank. Hash ${mine} at epoch ${W.tick}.`:'Diverged. Resyncing.',hashOk);if(!hashOk)resync();}}
 function setSync(t,ok){const e=$('sync');e.textContent=t;e.className='sync'+(ok?'':' bad');}
 
+// ---------- layers: static plate (redrawn only on zoom/pan) and a food layer refreshed every 8 ticks
+const bg=document.createElement('canvas');bg.width=tank.width;bg.height=tank.height;bg.className='bg';tank.parentNode.insertBefore(bg,tank);let bgKey='';
+const foodLayer=document.createElement('canvas');foodLayer.width=tank.width;foodLayer.height=tank.height;let foodTick=-99;
 // ---------- plate background
 const plate=document.createElement('canvas');plate.width=900*DPR;plate.height=900*DPR;
 function drawPlate(){const c=plate.getContext('2d');c.setTransform(DPR,0,0,DPR,0,0);const{CX,CY,R}=P;
@@ -52,10 +56,23 @@ function drawPlate(){const c=plate.getContext('2d');c.setTransform(DPR,0,0,DPR,0
   c.fillStyle=INK2;c.font=`9px ${MONO}`;c.textAlign='center';c.textBaseline='middle';for(let i=0;i<360;i+=30){const a=(i-90)*Math.PI/180;c.fillText(String(i).padStart(3,'0'),CX+Math.cos(a)*(R+28),CY+Math.sin(a)*(R+28));}}
 drawPlate();
 
+// ---------- sprite caches (visual only). Organisms are pre-drawn per species, traits, size, zoom bucket and 4 swim phases.
+const SPR=new Map();let sprZ=0;
+function zBucket(z){return z;}
+function sprite(sp,root,size,z,ph,ang){const zb=zBucket(z);if(zb!==sprZ){SPR.clear();sprZ=zb;}
+  const key=sp.id+'|'+sp.traits.join(',')+'|'+size+'|'+ph+'|'+ang;let e=SPR.get(key);if(e)return e;
+  const k=view.z*DPR,half=Math.ceil(size*4.2*k)+2,cv=document.createElement('canvas');cv.width=cv.height=half*2;const c=cv.getContext('2d');
+  const a=ang*Math.PI/8;c.setTransform(k,0,0,k,half,half);O.draw(c,{x:0,y:0,dx:Math.cos(a),dy:Math.sin(a),id:ph*5,v:.8},sp,root,size,zb,ph*6,1);
+  e={cv,half,k};if(SPR.size>12000)SPR.clear();SPR.set(key,e);return e;}
+const ALG=new Map();
+function algaeSprite(t,rot,z){const zb=zBucket(z),key=t+'|'+rot+'|'+zb;let e=ALG.get(key);if(e)return e;
+  const k=zb*DPR,half=Math.ceil(3*k)+2,cv=document.createElement('canvas');cv.width=cv.height=half*2;const c=cv.getContext('2d');c.setTransform(k,0,0,k,half,half);
+  O.algae(c,{x:0,y:0},t+rot*3,zb);e={cv,half,k};ALG.set(key,e);return e;}
 // ---------- tank render
 function drawTank(){
   const c=tc;c.setTransform(DPR,0,0,DPR,0,0);c.clearRect(0,0,900,900);
-  c.save();c.translate(view.ox,view.oy);c.scale(view.z,view.z);c.drawImage(plate,0,0,900,900);
+  const vk=view.z+','+view.ox+','+view.oy;if(vk!==bgKey){bgKey=vk;const b=bg.getContext('2d');b.setTransform(DPR,0,0,DPR,0,0);b.clearRect(0,0,900,900);b.save();b.translate(view.ox,view.oy);b.scale(view.z,view.z);b.drawImage(plate,0,0,900,900);b.restore();foodTick=-99;}
+  c.save();c.translate(view.ox,view.oy);c.scale(view.z,view.z);
   c.beginPath();c.arc(P.CX,P.CY,P.R,0,7);c.clip();
   const z=view.z*(tank.clientWidth/900||1);
   // thermal vents: concentric fine rings
@@ -70,13 +87,18 @@ function drawTank(){
     c.strokeStyle=`rgba(17,19,20,${.5*a})`;c.lineWidth=.7/view.z;c.setLineDash([1,3]);c.beginPath();c.arc(k.x,k.y,k.r,0,7);c.stroke();c.setLineDash([]);
     c.fillStyle=`rgba(17,19,20,${.55*a})`;c.font=`italic ${12/view.z}px ${SERIF}`;c.textAlign='center';c.fillText('impact, epoch '+k.t,k.x,k.y-k.r-6/view.z);}
   const vis=(x,y,m)=>{const sx=x*view.z+view.ox,sy=y*view.z+view.oy;return sx>-m&&sx<900+m&&sy>-m&&sy<900+m;};
-  for(let i=0;i<W.food.length;i++){const f=W.food[i];if(vis(f.x,f.y,10))O.algae(c,f,i,z);}
-  const S=W.species;
+  if(W.tick-foodTick>=8||W.tick<foodTick){foodTick=W.tick;const fc=foodLayer.getContext('2d');fc.setTransform(DPR,0,0,DPR,0,0);fc.clearRect(0,0,900,900);fc.save();fc.translate(view.ox,view.oy);fc.scale(view.z,view.z);
+    for(let i=0;i<W.food.length;i++){const f=W.food[i];if(!vis(f.x,f.y,10))continue;const a=algaeSprite(i%3,(i*7)%8,z);fc.drawImage(a.cv,f.x-a.half/a.k,f.y-a.half/a.k,a.cv.width/a.k,a.cv.height/a.k);}fc.restore();}
+  c.save();c.setTransform(1,0,0,1,0,0);c.drawImage(foodLayer,0,0);c.restore();
+  const S=W.species,ops=[];c.beginPath();
   for(const k of W.c){let tr=trails.get(k.id);if(!tr){tr=[];trails.set(k.id,tr);}
     if((W.tick&3)===0){tr.push(k.x,k.y);if(tr.length>18)tr.splice(0,2);}
     if(!vis(k.x,k.y,30))continue;const sp=S[k.sp];
-    if(tr.length>=4){c.strokeStyle=`rgba(${sp.col[0]},${sp.col[1]},${sp.col[2]},.22)`;c.lineWidth=.6/view.z;c.beginPath();c.moveTo(tr[0],tr[1]);for(let i=2;i<tr.length;i+=2)c.lineTo(tr[i],tr[i+1]);c.lineTo(k.x,k.y);c.stroke();}
-    O.draw(c,k,sp,S[sp.root],2.4+Math.min(1.6,k.e*.8),z,W.tick,1);}
+    if(tr.length>=4){c.moveTo(tr[0],tr[1]);for(let i=2;i<tr.length;i+=2)c.lineTo(tr[i],tr[i+1]);c.lineTo(k.x,k.y);}
+    const size=2.4+Math.round(Math.min(1.6,k.e*.8)/.8)*.8,ph=((W.tick>>3)+k.id)&1,ang=(Math.round(Math.atan2(k.dy,k.dx)/(Math.PI/8))+16)&15,spr=sprite(sp,S[sp.root],size,z,ph,ang);
+    const sx=(k.x*view.z+view.ox)*DPR,sy=(k.y*view.z+view.oy)*DPR;ops.push(spr.cv,Math.round(sx-spr.half),Math.round(sy-spr.half));}
+  c.strokeStyle='rgba(90,80,64,.16)';c.lineWidth=.6/view.z;c.stroke();
+  c.save();c.setTransform(1,0,0,1,0,0);for(let i=0;i<ops.length;i+=3)c.drawImage(ops[i],ops[i+1],ops[i+2]);c.restore();
   if(W.tick%200===0){const alive=new Set(W.c.map(k=>k.id));for(const id of trails.keys())if(!alive.has(id))trails.delete(id);}
   if(mark){c.strokeStyle=RUST;c.lineWidth=.8/view.z;const m=8/view.z;c.beginPath();c.moveTo(mark[0]-m,mark[1]);c.lineTo(mark[0]+m,mark[1]);c.moveTo(mark[0],mark[1]-m);c.lineTo(mark[0],mark[1]+m);c.stroke();
     c.beginPath();c.arc(mark[0],mark[1],m*1.6,0,7);c.stroke();c.fillStyle=RUST;c.font=`italic ${12/view.z}px ${SERIF}`;c.textAlign='left';c.fillText('your mark',mark[0]+m*2,mark[1]+4/view.z);}
@@ -193,7 +215,7 @@ function loop(){catchUp();frame++;
   if(qs.get('sp')&&!sel){const id=+qs.get('sp');sel=W.c.find(k=>k.sp===id||W.species[k.sp].root===id)||null;if(sel){drawSpecimen();drawSkill();}}
   if(qs.get('pick')==='released'&&!sel){sel=W.c.find(k=>W.species[W.species[k.sp].root].released)||null;if(sel){drawSpecimen();drawSkill();}}
   if(qs.get('zoom')&&frame===2&&sel){view.z=+qs.get('zoom');view.ox=450-sel.x*view.z;view.oy=450-sel.y*view.z;}
-  drawTank();if(frame%3===0){drawBrain();drawSpecimen();}if(frame%30===1){drawTree();drawSkill();}
+  {const t=performance.now();drawTank();perf.draw+=performance.now()-t;perf.draws++;perf.frames++;}if(frame%3===0){drawBrain();drawSpecimen();}if(frame%30===1){drawTree();drawSkill();}
   if(frame%10===1){$('tick').textContent=W.tick;$('tick2').textContent=W.tick;$('pop').textContent=W.c.length;$('nsp').textContent=W.species.filter(s=>s.count).length;}
   requestAnimationFrame(loop);}
 boot();
