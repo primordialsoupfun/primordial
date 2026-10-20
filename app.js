@@ -155,7 +155,10 @@ const frost=document.createElement('canvas');frost.width=900;frost.height=900;
 // ---------- territory: zone outlines, holder banners, ink spread on capture
 const capture=new Map();
 function holderName(h){return h<0?'unclaimed':spName(W.species[h]);}
-function drawZones(c){if(!W.pvp)return;if(W.pvp.v===2)return drawZones2(c);const s=(view.z<2?1.6:1)/view.z,now=performance.now();
+// Territory overlay is a view preference only. Default off: the dish reads as a plain petri dish.
+const TKEY='primordial.territory';let showTerr=localStorage.getItem(TKEY)==='on';
+function setTerr(on){showTerr=on;localStorage.setItem(TKEY,on?'on':'off');const b=$('terr');b.setAttribute('aria-pressed',String(on));b.textContent=on?'Hide territories':'Show territories';document.querySelector('.viewport').classList.toggle('terr-on',on);if(!on)$('zcard').hidden=true;}
+function drawZones(c){if(!W.pvp||!showTerr)return;if(W.pvp.v===2)return drawZones2(c);const s=(view.z<2?1.6:1)/view.z,now=performance.now();
   for(const z of W.pvp.zones){const prev=capture.get(z.name);if(!prev)capture.set(z.name,{h:z.h,at:0});else if(prev.h!==z.h){prev.h=z.h;prev.at=now;}
     const cp=capture.get(z.name),q=cp.at?Math.min(1,(now-cp.at)/1400):1,col=z.h>=0?W.species[z.h].col:[91,85,74],mine=z.h>=0&&W.species[z.h].released;
     if(q<1){const e=1-Math.pow(1-q,3);c.fillStyle=`rgba(${col},${.28*(1-q)})`;c.beginPath();for(let i=0;i<=24;i++){const a=i/24*6.283,w=1+.07*Math.sin(i*2.7+z.x);c.lineTo(z.x+Math.cos(a)*z.r*e*w,z.y+Math.sin(a)*z.r*e*w);}c.fill();}
@@ -202,7 +205,7 @@ function drawZones2(c){zoneMaps();zoneTint();const Z=W.pvp.zones,now=performance
       c.strokeStyle=INK;c.lineWidth=.8*s;c.stroke();
       c.strokeStyle='rgba(17,19,20,.35)';c.lineWidth=.5*s;c.beginPath();c.moveTo(px+3*s,top+4*s+w1*.4);c.lineTo(px+12*s,top+5*s+w1*.8);c.moveTo(px+3*s,top+8.5*s+w1*.4);c.lineTo(px+11*s,top+9.5*s+w1*.8);c.stroke();}});}
 // zone card on hover or tap
-function zoneCard(sx,sy,wx,wy){const el=$('zcard');if(!W.pvp||W.pvp.v!==2){el.hidden=true;return;}const q=W.zoneIndex(wx,wy);if(q===255){el.hidden=true;return;}
+function zoneCard(sx,sy,wx,wy){const el=$('zcard');if(!showTerr||!W.pvp||W.pvp.v!==2){el.hidden=true;return;}const q=W.zoneIndex(wx,wy);if(q===255){el.hidden=true;return;}
   const z=W.pvp.zones[q],held=z.h>=0;el.innerHTML=`<p class="zk">Zone</p><h3></h3><p class="zh"></p><p class="zr">The lineage with the most living mass here holds this zone and flies its flag. A rival needs 15 percent more to take it.</p>`;
   el.querySelector('h3').textContent=z.name;el.querySelector('.zh').textContent=held?`Held by ${holderName(z.h)} since tick ${z.since}.`:'Unclaimed. The first lineage to settle here takes it.';
   const r=tank.getBoundingClientRect(),k=r.width/900;el.hidden=false;const L=Math.min(r.width-el.offsetWidth-8,Math.max(8,sx*k+14)),T=Math.max(8,Math.min(r.height-el.offsetHeight-8,sy*k+14));el.style.left=L+'px';el.style.top=T+'px';}
@@ -285,6 +288,7 @@ $('starsp').onclick=()=>{if(sel)toggleFollow(sel.sp);};
 const toWorld=(e)=>{const r=tank.getBoundingClientRect(),sx=(e.clientX-r.left)*900/r.width,sy=(e.clientY-r.top)*900/r.height;return[(sx-view.ox)/view.z,(sy-view.oy)/view.z,sx,sy];};
 function zoomAt(f,sx,sy){const nz=Math.max(1,Math.min(14,view.z*f));view.ox=sx-(sx-view.ox)*nz/view.z;view.oy=sy-(sy-view.oy)*nz/view.z;view.z=nz;if(nz===1){view.ox=0;view.oy=0;}}
 tank.addEventListener('wheel',e=>{e.preventDefault();cam.goal=null;const[, ,sx,sy]=toWorld(e);zoomAt(Math.exp(-Math.max(-60,Math.min(60,e.deltaY))*.004),sx,sy);hintSeen();},{passive:false});
+$('terr').onclick=()=>setTerr(!showTerr);setTerr(showTerr);
 $('zin').onclick=()=>zoomSmooth(1.5,450,450);$('zout').onclick=()=>zoomSmooth(1/1.5,450,450);$('zreset').onclick=()=>{stopTrack();goTo(450,450,1);};
 // Pointer input: one finger or mouse drags, two fingers pinch, tap picks, double tap or double click zooms in at the point.
 const ptrs=new Map();let drag=null,pinch=null,lastTap={t:0,x:0,y:0};
@@ -311,7 +315,7 @@ function zoomSmooth(f,sx,sy){const nz=Math.max(1,Math.min(14,view.z*f)),wx=(sx-v
   // keep the tapped point under the finger: solve for the new view centre
   const gx=wx-(wx-cx)*view.z/nz,gy=wy-(wy-cy)*view.z/nz;if(nz===1)goTo(450,450,1);else goTo(gx,gy,nz);}
 window.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'||e.metaKey||e.ctrlKey)return;
-  if(e.key==='+'||e.key==='=')zoomSmooth(1.5,450,450);else if(e.key==='-'||e.key==='_')zoomSmooth(1/1.5,450,450);else if(e.key==='0'){stopTrack();goTo(450,450,1);}});
+  if(e.key==='+'||e.key==='=')zoomSmooth(1.5,450,450);else if(e.key==='-'||e.key==='_')zoomSmooth(1/1.5,450,450);else if(e.key==='t'||e.key==='T')setTerr(!showTerr);else if(e.key==='0'){stopTrack();goTo(450,450,1);}});
 function pick(e){const[x,y]=toWorld(e);let best=null,bd=(14/view.z)**2;for(const k of W.c){const d=(k.x-x)**2+(k.y-y)**2;if(d<bd){bd=d;best=k;}}
   if(best){sel=best;drawSpecimen();drawSkill();}else{mark=[Math.round(x),Math.round(y)];$('markinfo').textContent=`Mark set at ${mark[0]}, ${mark[1]}.`;}}
 
@@ -430,7 +434,7 @@ function loop(now){catchUp();requestAnimationFrame(loop);
   if(qs.get('pick')==='released'&&!sel){sel=W.c.find(k=>W.species[W.species[k.sp].root].released)||null;if(sel){drawSpecimen();drawSkill();}}
   if(qs.get('zoom')&&!loop.z&&sel){loop.z=1;view.z=+qs.get('zoom');view.ox=450-sel.x*view.z;view.oy=450-sel.y*view.z;}
   camStep();
-  const vk=view.z+','+view.ox+','+view.oy+','+(sel?sel.id:0)+','+(selLine==null?'':selLine)+','+follows.size+','+(mark?mark.join():'');
+  const vk=view.z+','+view.ox+','+view.oy+','+(sel?sel.id:0)+','+(selLine==null?'':selLine)+','+follows.size+','+(mark?mark.join():'')+(showTerr?'T':'');
   if(now-lastDraw<31||(W.tick===lastTickDrawn&&vk===viewKey))return;
   lastDraw=now;lastTickDrawn=W.tick;viewKey=vk;frame++;
   if(frame===1)document.body.classList.remove('booting');

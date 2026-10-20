@@ -200,3 +200,9 @@ button,a,.lines li{transition:background .2s var(--ease),color .2s var(--ease),b
 .fastnote{position:absolute;left:8px;bottom:8px;display:flex;align-items:center;gap:10px;background:var(--paper);border:1px solid var(--ink);padding:4px 4px 4px 10px;font-size:13px;font-style:italic;z-index:4}
 .fastnote[hidden]{display:none}.fastnote button{border:1px solid var(--ink);padding:3px 10px;font-style:normal;font-size:12.5px}.fastnote button:hover{background:var(--ink);color:var(--paper)}
 @media (max-width:760px){.zlegend{font-size:10.5px;padding:4px 7px}.zlegend .muted{display:none}.zcard{width:210px}}
+
+.terr{position:absolute;left:8px;bottom:8px;height:36px;border:1px solid var(--ink);background:var(--paper);padding:0 12px;font-size:13.5px;align-items:center;box-shadow:0 2px 0 rgba(17,19,20,.12)}
+.terr:hover,.terr[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.zlegend{display:none}.terr-on .zlegend{display:flex}
+.fastnote{bottom:52px}
+@media (max-width:760px){.terr{height:44px}.fastnote{bottom:60px}}
