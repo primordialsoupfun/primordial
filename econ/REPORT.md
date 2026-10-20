@@ -1,3 +1,106 @@
+# Round 4: long worlds, player reactions, launch week, territory, real pump.fun fees
+
+Scripts: `measure_long.js`, `build_long.js`, `measure_pvp.js`, `econ2.py`, `zones.py`, `gen_whitepaper.py` (builds `/whitepaper`).
+
+## Long measured worlds
+8 worlds, 864,000 ticks each (8 h of game time). One release every 20,000 ticks, rotating casual, Recommended start and skilled. Random disasters and food.
+
+| type | releases | median life | p90 | longest | alive at end |
+|---|---|---|---|---|---|
+| casual | 120 | 50 s | 110 s | 28730 s | 1 |
+| starter | 120 | 80 s | 170 s | 850 s | 2 |
+| skilled | 112 | 90 s | 190 s | 27400 s | 4 |
+
+**Rare dynasties.** About 1 in 100 lineages survives for hours. One casual lineage lived 8 h and one skilled lineage 7.6 h, and they dominate the totals: 16M and 9.8M creature-seconds, against medians near 1,000.
+- With these long lineages, the medium game gives:
+
+  | | value |
+  |---|---|
+  | average | 1.17x |
+  | median | 0.63x |
+  | p90 | 3.02x |
+  | top 1% | about 17x |
+  | players profitable | 32% |
+
+- The sample is still small (about 120 per type), so the casual vs Recommended start comparison is noisy at the top.
+
+## Intervention price mix
+Prices are from server.js, with SOL at $150: food $1.50, meteor $7.50, cold front and toxic bloom $4.50.
+- **Assumed mix:** 60% food, 10% meteors, 15% cold fronts, 15% toxic blooms. That averages $3.00.
+- **Cooldown caps:** at most 288 meteors and 480 each of cold fronts and toxic blooms per day.
+
+| interventions/day | avg | median | p90 | players profitable | SOUP burned/day |
+|---|---|---|---|---|---|
+| 50 | 1.17x | 0.63x | 3.02x | 32% | $310 |
+| 200 | 1.17x | 0.63x | 3.02x | 32% | $726 |
+| 1000 | 1.36x | 0.78x | 3.09x | 42% | $2780 |
+
+## Creator fee, from pump.fun's fee page (pump.fun/docs/fees, last updated 17 Oct 2026)
+- **Bonding curve:** creator fee 0.300%.
+- **PumpSwap canonical pool, SOL pairs:**
+
+  | market cap | creator fee |
+  |---|---|
+  | 0 to 420 SOL | 0.300% |
+  | 420 to 1,470 SOL | 0.950% |
+  | then falling in steps | |
+  | 98,240 SOL and above | 0.050% |
+
+- 70% of the creator fee goes to the pool.
+
+| creator fee | volume/day | pool inflow/day | capacity at $1 | avg | median | price |
+|---|---|---|---|---|---|---|
+| 0.05% | $20,000 | $247 | 185 | 1.17x | 0.63x | $4.65 |
+| 0.05% | $100,000 | $275 | 206 | 1.17x | 0.63x | $5.18 |
+| 0.05% | $500,000 | $415 | 311 | 1.17x | 0.63x | $7.82 |
+| 0.30% | $20,000 | $282 | 211 | 1.17x | 0.63x | $5.31 |
+| 0.30% | $100,000 | $450 | 337 | 1.17x | 0.63x | $8.48 |
+| 0.30% | $500,000 | $1290 | 967 | 1.30x | 0.73x | $24.31 |
+| 0.75% | $20,000 | $345 | 258 | 1.17x | 0.63x | $6.50 |
+| 0.75% | $100,000 | $765 | 573 | 1.17x | 0.63x | $14.41 |
+| 0.75% | $500,000 | $2865 | 2148 | 2.22x | 1.44x | $25.00 |
+| 0.95% | $20,000 | $373 | 279 | 1.17x | 0.63x | $7.03 |
+| 0.95% | $100,000 | $905 | 678 | 1.18x | 0.66x | $17.05 |
+| 0.95% | $500,000 | $3565 | 2673 | 2.72x | 1.80x | $25.00 |
+
+## Players react to yesterday's average return
+**Assumption:** each day, releases change by (yesterday's average return)^1.5, by at most ±30% a day. Over 60 days:
+
+| volume | interventions | start | settles at | avg return | price |
+|---|---|---|---|---|---|
+| $20,000 | 50 | 10 | 15 | 1.88x | $5.98 |
+| $20,000 | 50 | 300 | 46 | 1.73x | $1.81 |
+| $100,000 | 200 | 10 | 34 | 1.37x | $11.24 |
+| $100,000 | 200 | 300 | 442 | 1.03x | $1.02 |
+| $500,000 | 1000 | 10 | 2066 | 1.05x | $1.06 |
+| $500,000 | 1000 | 300 | 2247 | 1.00x | $1.00 |
+
+- When players flood in, the price falls to the $1 floor and the average return drifts toward 1.0x. Burn rises, and the player edge disappears.
+- When demand stays below capacity, returns stay above target and the price rises.
+- **Proposed fix, not simulated:** raise the price within the day with demand, for example +1% per paid release above yesterday's count, so the 1.2x target holds and more SOUP is burned.
+
+## Launch week (pool starts at 0; volume $5k to $100k over 14 days; 20 releases and 50 interventions per day)
+| bootstrap | day 1 avg | week 1 avg | week 1 median |
+|---|---|---|---|
+| no bootstrap | 0.11x | 1.12x | 0.99x |
+| seed pool $300 | 0.59x | 1.18x | 0.86x |
+| 100% creator fee to pool for 7 days | 0.12x | 1.16x | 1.01x |
+| both | 0.60x | 1.21x | 0.88x |
+
+- Without a bootstrap, day 1 players get back about 0.11x.
+- **Proposed, not decided:** seed the pool with $300 from the team and send 100% of creator fees to the pool for 7 days.
+
+## Territory (PvP), measured with pvp active (4 worlds x 300k ticks, 60 lineages)
+- Zones held on average: 0.28; p90 0.71; max 1.87.
+- With +5% yield weight per zone (capped at 3, not applied to the top-3 bonus), the median moves from 0.71x to 0.70x. The effect is small by design. This bonus is implemented in economy.js.
+- Predation kills by released lineages were too rare to measure in these runs.
+
+## Free entry change
+- The free release is now a one-time X-share claim, open only at launch, for the first 500 wallets.
+- The model assumes free claims equal 20% of daily paid releases, down from 50%.
+- Under the 10% free cap, this barely moves paid returns.
+
+---
 # Primordial economic simulation, round 3 (final: clear winners and losers)
 
 **Goals:**

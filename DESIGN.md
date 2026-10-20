@@ -81,7 +81,12 @@ Implemented in `economy.js`, server side only. The deterministic sim only adds t
 - The site shows "Today's release price $X, yesterday avg return Yx".
 
 **Limits**
-- Free release: 1 per wallet per UTC day. The wallet must be at least 7 days old or hold $5 of SOUP.
+- Free microbe (`claims.js`): closed until launch (`CLAIM_OPEN=1`, `CAMPAIGN_TWEET_ID`). While closed, the site shows a preview and no codes or X API calls happen.
+  - Claim flow: the wallet gets a code (`SOUP` plus 6 hex digits), quotes or replies to the campaign post from the player's own X account, then presses Check.
+  - The server batches up to 15 pending codes into one recent search per `CLAIM_POLL_S` (60 s) and checks the reference to the campaign post, account age (at least `X_MIN_AGE_DAYS`, 30) and followers (at least `X_MIN_FOLLOWERS`, 25).
+  - Limits: one claim per wallet and per X account, lifetime; first `CLAIM_MAX` (500) wallets.
+  - Daily spend cap `X_DAILY_SPEND_USD` (default 2). Estimated cost: one post read plus one user read per claim, $0.005 plus $0.010 at X pay-per-use rates, so about $1.50 per 100 claims, or $0.50 if user expansions are not billed separately. Likes are encouraged but never verified.
+  - Same 1/4 weight and 10% free cap as before.
 - At most 10 paid releases per wallet per day.
 - Released lineages are shielded from disasters for 10 minutes. This is done via `ev.shield`, so older logs replay unchanged.
 - Cooldowns: meteor 300 s; cold front and toxic bloom 180 s each.

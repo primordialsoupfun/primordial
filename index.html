@@ -37,11 +37,11 @@
     <p class="kicker">A living experiment you can join</p>
     <h1>Release a creature. Keep its species alive. Earn SOL while it survives.</h1>
     <p class="lede">Every creature in this dish has a tiny brain that learns by natural selection. Put one in, help it adapt, and the longest surviving species share the prize pool each season.</p>
-    <div class="cta"><button id="ctaRelease" class="primary"><span>Release a creature (free today)</span></button><a class="how" href="/how">How it works</a><a class="how" href="/whitepaper">Whitepaper</a></div>
+    <div class="cta"><button id="ctaRelease" class="primary"><span>Claim a free microbe</span></button><a class="how" href="/how">How it works</a><a class="how" href="/whitepaper">Whitepaper</a></div>
   </div>
   <ol class="steps">
     <li><b>1</b><span><i>Pick</i> a name for your creature.</span></li>
-    <li><b>2</b><span><i>Release</i> it into the dish. One release a day is free.</span></li>
+    <li><b>2</b><span><i>Release</i> it into the dish. Your first one can be free.</span></li>
     <li><b>3</b><span><i>Watch</i> it live. If its species survives, you get paid.</span></li>
   </ol>
 </section>
@@ -55,14 +55,24 @@
   </div>
 </div>
 
-<div id="releaseDlg" class="guide" hidden>
+<div id="releaseDlg" class="guide" hidden><style>#releaseDlg [hidden]{display:none!important}.clsteps li{font-size:15px}</style>
   <div class="card">
-    <p class="gstep">Your free release for today</p>
-    <h2>Name your creature</h2>
-    <p>It enters the dish with 40 siblings next to a warm vent, protected from disasters for 10 minutes. Its descendants carry your name and earn a quarter of what a paid release earns. You need a Solana wallet at least 7 days old, or one holding $5 of SOUP, so the payout can find you. It costs only a network fee of a fraction of a cent.</p>
-    <div class="row dlgrow"><input id="freeName" maxlength="24" placeholder="For example, Lantern Drifter" autocomplete="off"></div>
+    <p class="gstep" id="clKicker">Free microbe</p>
+    <h2>Claim a free microbe</h2>
+    <p id="clClosed" class="note">Free microbe claim opens at launch. First 500 Solana wallets.</p>
+    <ol class="clsteps">
+      <li>Connect your Solana wallet.</li>
+      <li>Get your claim code. It is tied to your wallet.</li>
+      <li>Quote or reply to our launch post on X from your own account, and include the code. Your X account must be at least <span id="clAge">30</span> days old and have at least <span id="clFol">25</span> followers.</li>
+      <li>Press Check. When your post is found, name your microbe and release it. It joins the dish with 40 siblings next to a warm vent and is protected from disasters for 10 minutes.</li>
+    </ol>
+    <p class="muted small">One claim per wallet and per X account. A free microbe earns a quarter of what a paid release earns. Likes and reposts are welcome but not required.</p>
+    <div id="clLive" hidden>
+      <div class="row dlgrow"><button id="clCode" class="ghost"><span>Get my code</span></button><code id="clCodeOut"></code><a id="clPost" class="how" target="_blank" rel="noopener" hidden>Post on X</a><button id="clCheck" class="ghost" hidden><span>Check</span></button></div>
+      <div class="row dlgrow" id="clNameRow" hidden><input id="freeName" maxlength="24" placeholder="For example, Lantern Drifter" autocomplete="off"></div>
+    </div>
     <p class="muted small" id="dlgNote"></p>
-    <div class="gnav"><button id="dlgCancel" class="link">Not now</button><button id="dlgGo" class="primary"><span>Connect wallet and release</span></button></div>
+    <div class="gnav"><button id="dlgCancel" class="link">Not now</button><button id="dlgGo" class="primary" hidden><span>Release my microbe</span></button></div>
   </div>
 </div>
 

@@ -53,7 +53,7 @@ svg text{{font-family:"Iowan Old Style",Palatino,Georgia,serif}}
 <li><b>The dish.</b> Hundreds of creatures eat algae, split, mutate and form species. Each creature has 9 sensory inputs, 7 hidden neurons and 3 motor outputs. Nobody programmed their behaviour; selection is the only teacher.</li>
 <li><b>Releasing.</b> A release puts 40 siblings with a fresh random brain into the dish under your chosen name. Paid releases cost today's release price in SOUP (or the same value in SOL, which is used to buy back and burn SOUP). New releases are protected from disasters for 10 minutes.</li>
 <li><b>Recommended start.</b> One button marks the warm vent with the most food and suggests the first trait, Efficient digestion.</li>
-<li><b>Free release.</b> One per wallet per day. A free lineage earns a quarter of a paid one.</li>
+<li><b>Free microbe.</b> Opens at launch for the first 500 Solana wallets: share our launch post on X with a personal code (quote or reply) from an account at least 30 days old with at least 25 followers. One per wallet and per X account. A free lineage earns a quarter of a paid one.</li>
 <li><b>Interventions.</b> Anyone can buy a food bloom, meteor, cold front or toxic bloom. Each enters the public event log and plays out identically in every browser.</li>
 <li><b>Evolution tree.</b> When a released lineage reaches a milestone, its releaser can burn SOUP to unlock a trait such as armor, longer flagella, wider eyes or cold resistance. Some branches lock each other out.</li>
 <li><b>Territory.</b> The dish has named zones. The lineage with the most living biomass in a zone holds it. Holding zones adds a small bonus to hourly yield (see below).</li>
@@ -85,11 +85,11 @@ lineage payout     = Y x w / sum of all w            (no wallet above {int(P['wa
 
 <h2 id="rules">Fair limits</h2>
 <ul>
-<li>One free release per wallet per day, only for wallets at least 7 days old or holding $5 of SOUP.</li>
+<li>One free microbe per wallet and per X account, for the first 500 wallets, verified through a public post that contains a code tied to the wallet. The server batches all pending codes into one X search per minute and has a daily API spend cap.</li>
 <li>At most 10 paid releases per wallet per day. No wallet earns more than 10 percent of a day's yield.</li>
 <li>New releases ignore disasters for 10 minutes. Meteors have a 5 minute cooldown; cold fronts and toxic blooms 3 minutes.</li>
 <li>The daily bonus uses the whole day's creature-seconds and a 2 hour minimum age, so a last-minute release cannot snipe it.</li>
-<li>In simulation, 1000 sybil wallets claiming free releases took about $32 a day and left honest returns unchanged; without the limits they took $268 a day. A whale releasing 50 times more than everyone else got back about 0.4x.</li>
+<li>In simulation, even 1000 free lineages a day took about $32 a day under the 10 percent free cap and left honest returns unchanged; without the cap they took $268 a day. The X share requirement makes that many free claims impractical. A whale releasing 50 times more than everyone else got back about 0.4x.</li>
 </ul>
 
 <h2 id="verify">Fairness and verifiability</h2>

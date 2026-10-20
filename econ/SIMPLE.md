@@ -19,7 +19,7 @@
 
 **How you get paid, in one sentence:** every hour the pool pays creatures that are alive, and the longer your lineage lives the bigger your share, with some diminishing returns, so long-lived lineages win big but one colony cannot take everything.
 
-**One free release per day** per wallet. Free creatures earn a quarter of a paid one, so you can try the game without paying.
+**One free microbe at launch.** The first 500 Solana wallets can claim one by sharing our launch post on X with a personal code. It earns a quarter of a paid one.
 
 **The price changes once a day**, so that on average players get back about 1.2 times what they burn. It is never below $1 or above $25. New creatures are protected from disasters for 10 minutes.
 
@@ -34,3 +34,6 @@ This is a simulation, not a promise.
 | Free releases with weights and caps | Hard to explain | "Free creature earns 1/4 of a paid one." Caps run quietly in the background. |
 | Weather commit-reveal and slot hash | Too technical for players | Players just see "Cold front in 2 days". Proof stays on a separate verify page. |
 | Skill tree with locks and milestones | Fine, but hides why you lose | Done: the Recommended start button marks the best vent and suggests Efficient digestion. It moves the average from 0.59x (random spot) to 1.25x. Skilled players still do better, at 1.67x. |
+
+
+Numbers on this page come from round 3 (short worlds). The longer 8-hour worlds in round 4 show the same picture, with an even fatter top: typical player about $3.15 back per $5, top 1 in 100 about 17x. See the whitepaper.

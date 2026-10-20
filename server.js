@@ -1,7 +1,7 @@
 'use strict';
 const http=require('http'),fs=require('fs'),path=require('path'),url=require('url');
 const P=require('./sim.js'),Org=require('./organism.js'),Card=require('./card.js');
-const C=require('./chain.js');const Eco=require('./economy.js');const {web3,spl,conn}=C;
+const C=require('./chain.js');const Eco=require('./economy.js');const Claims=require('./claims.js');const {web3,spl,conn}=C;
 const PORT=+process.env.PORT||8765,HZ=+process.env.TICK_HZ||30,LEAD=+process.env.LEAD||45;
 const SEED=+process.env.SEED||20261021;
 const TICKER=process.env.TICKER||'SOUP',PUBLIC_URL=(process.env.PUBLIC_URL||'https://primordialsoup.fun').replace(/\/$/,'');
@@ -12,7 +12,7 @@ const PRICES={food:0.01*L,meteor:0.05*L,cold:0.03*L,toxic:0.03*L,release:0.10*L}
 const FOOD_BURN=50,FREE_PER_DAY=+process.env.FREE_PER_DAY||200; // tokens, alternative to SOL for feeding
 const DATA=process.env.DATA_DIR||__dirname+'/data';require('fs').mkdirSync(DATA,{recursive:true});const _D=0,LEDGER=DATA+'/ledger.json';
 let ledger=fs.existsSync(LEDGER)?JSON.parse(fs.readFileSync(LEDGER)):{seed:SEED,cfg:CFG,events:[],used:{},revenue:0,pool:0,burnQueue:0,burns:[],commits:[],payouts:[],tokensBurned:0,traitBurned:0};
-const eco=Eco.init(ledger);eco.lastTick=eco.lastTick||0;
+const eco=Eco.init(ledger);const claims=Claims.init(ledger);eco.lastTick=eco.lastTick||0;
 const save=()=>fs.writeFileSync(LEDGER,JSON.stringify(ledger,null,1));
 // Canonical world: rebuild from seed + log on boot.
 let W=new P.World(ledger.seed,ledger.cfg);const byTick=new Map();
@@ -60,12 +60,8 @@ async function payout(){if(!live||paying)return;paying=true;try{
   const sig=await C.send(ixs,[treasury]);for(const r of rec){eco.owed[r.owner]-=r.lamports;}eco.sent.push({at:new Date().toISOString(),sig,n:rec.length,lamports:rec.reduce((a,b)=>a+b.lamports,0)});if(eco.sent.length>50)eco.sent.shift();save();broadcast('chain',{kind:'payout',sig});}
   catch(e){console.error('payout failed',e.message);}finally{paying=false;}}
 setInterval(payout,+process.env.PAYOUT_INTERVAL_S*1000||300000);
-// Free release gate: the wallet is at least 7 days old, or holds at least $5 of SOUP.
-async function freeEligible(pk){try{const r=await conn.getParsedTokenAccountsByOwner(new web3.PublicKey(pk),{mint:MINT});let bal=0;for(const a of r.value)bal+=a.account.data.parsed.info.tokenAmount.uiAmount||0;
-    if(bal*Eco.E.SOUP_USD>=Eco.E.FREE_MIN_USD)return true;}catch(e){}
-  try{let before,oldest=null;for(let i=0;i<3;i++){const sigs=await conn.getSignaturesForAddress(new web3.PublicKey(pk),{limit:1000,before});if(!sigs.length)break;oldest=sigs[sigs.length-1];if(sigs.length<1000)break;before=oldest.signature;}
-    if(oldest&&oldest.blockTime&&Date.now()/1000-oldest.blockTime>=Eco.E.FREE_MIN_AGE_DAYS*86400)return true;}catch(e){}
-  return false;}
+// Free microbe claim: verified X share (claims.js). Polls only while the claim is open and claims are pending.
+setInterval(()=>Claims.poll(claims,save),Claims.C.POLL_S*1000);
 async function burnJob(){
   const lam=ledger.burnQueue;if(lam<=0)return;
   const tokens=BigInt(Math.floor(lam/L*MOCK_RATE*1e6)); // DRY RUN: no swap is executed; treasury test tokens stand in for bought-back tokens
@@ -96,10 +92,9 @@ async function verify(sig){
     const S=W.species[m.sp|0];if(!S||S.owner!==payer||S.root!==S.id)throw new Error('only the releaser can evolve this species');if(!W.eligible(S.id,m.trait))throw new Error('milestone not reached or branch locked');
     ev.sp=S.id;ev.trait=m.trait;ev.burned=burned;ledger.traitBurned+=burned;ledger.tokensBurned+=burned;}
   else if(m.t==='food'&&burned>=FOOD_BURN){ev.burned=burned;ledger.tokensBurned+=burned;}
-  else if(m.t==='release'&&m.free){ledger.freeUsed2=ledger.freeUsed2||{};const day=new Date().toISOString().slice(0,10);ledger.freeDay=ledger.freeDay||{};
-    if(ledger.freeUsed2[payer]===day)throw new Error('you have used today\'s free release, the next one opens tomorrow (UTC)');
-    if(!(await freeEligible(payer)))throw new Error(`free releases need a wallet at least ${Eco.E.FREE_MIN_AGE_DAYS} days old or holding $${Eco.E.FREE_MIN_USD} of ${TICKER}`);if((ledger.freeDay[day]||0)>=FREE_PER_DAY)throw new Error('free releases are full for today, try again tomorrow');
-    const name=String(m.name||'').replace(/[^\w .'-]/g,'').trim().slice(0,24);if(!name)throw new Error('name required');ev.name=name;ev.free=true;ev.shield=Eco.E.SHIELD_S*HZ;ledger.freeUsed2[payer]=day;ledger.freeDay={[day]:(ledger.freeDay[day]||0)+1};}
+  else if(m.t==='release'&&m.free){const g=Claims.consume(claims,payer);const day=new Date().toISOString().slice(0,10);ledger.freeDay=ledger.freeDay||{};
+    if((ledger.freeDay[day]||0)>=FREE_PER_DAY)throw new Error('free releases are full for today, try again tomorrow');
+    const name=String(m.name||'').replace(/[^\w .'-]/g,'').trim().slice(0,24);if(!name)throw new Error('name required');ev.name=name;ev.free=true;ev.shield=Eco.E.SHIELD_S*HZ;g.used=true;ledger.freeDay={[day]:(ledger.freeDay[day]||0)+1};}
   else if(m.t==='release'){const name=String(m.name||'').replace(/[^\w .'-]/g,'').trim().slice(0,24);if(!name)throw new Error('name required');
     if((eco.day.walletPaid[payer]||0)>=Eco.E.MAX_PAID_PER_WALLET_DAY)throw new Error(`limit of ${Eco.E.MAX_PAID_PER_WALLET_DAY} paid releases per wallet per day`);
     // Today's release price: burn SOUP worth P dollars, or pay the same in SOL which is used entirely for buyback and burn.
@@ -145,8 +140,11 @@ http.createServer(async(req,res)=>{
   try{
   if(p==='/api/stream'){res.writeHead(200,{'content-type':'text/event-stream','cache-control':'no-cache',connection:'keep-alive'});res.write(`event: tick\ndata: ${JSON.stringify({t:W.tick})}\n\n`);clients.add(res);req.on('close',()=>clients.delete(res));return;}
   if(p==='/api/snapshot'){const evs=ledger.events.filter(e=>e.at>=snapshot.tick);res.writeHead(200,{'content-type':'application/json'});return res.end(`{"tick":${snapshot.tick},"serverTick":${W.tick},"events":${JSON.stringify(evs)},"state":${snapshot.state}}`);}
-  if(p==='/api/config')return json(res,{rpc:'/api/rpc',cluster:process.env.CLUSTER||(/127\.0\.0\.1|localhost/.test(C.RPC)?'localnet':'devnet'),treasury:treasury.publicKey.toBase58(),mint:MINT?MINT.toBase58():null,chainReady:live,prices:PRICES,eco:Eco.publicView(eco,ledger),foodBurn:FOOD_BURN,traitBurn:P.TRAIT_BURN,cfg:CFG,hz:HZ,seed:ledger.seed,ticker:TICKER,publicUrl:PUBLIC_URL,tree:P.TREE});
-  if(p==='/api/ledger'){const L2=Object.assign({},ledger);delete L2.used;delete L2.events;L2.eventCount=ledger.events.length;L2.recent=ledger.events.slice(-30);L2.scores=W.scores().slice(0,10);L2.epochs=W.epochs.slice(-5);L2.eco=Eco.publicView(eco,ledger);delete L2.freeUsed;delete L2.freeUsed2;return json(res,L2);}
+  if(p==='/api/config')return json(res,{rpc:'/api/rpc',cluster:process.env.CLUSTER||(/127\.0\.0\.1|localhost/.test(C.RPC)?'localnet':'devnet'),treasury:treasury.publicKey.toBase58(),mint:MINT?MINT.toBase58():null,chainReady:live,prices:PRICES,eco:Eco.publicView(eco,ledger),claim:Claims.publicStats(claims),foodBurn:FOOD_BURN,traitBurn:P.TRAIT_BURN,cfg:CFG,hz:HZ,seed:ledger.seed,ticker:TICKER,publicUrl:PUBLIC_URL,tree:P.TREE});
+  if(p==='/api/ledger'){const L2=Object.assign({},ledger);delete L2.used;delete L2.events;L2.eventCount=ledger.events.length;L2.recent=ledger.events.slice(-30);L2.scores=W.scores().slice(0,10);L2.epochs=W.epochs.slice(-5);L2.eco=Eco.publicView(eco,ledger);delete L2.claims;L2.claim=Claims.publicStats(claims);delete L2.freeUsed;delete L2.freeUsed2;return json(res,L2);}
+  if(p==='/api/claim'){const w=String(u.query.wallet||'');let ok=false;try{new web3.PublicKey(w);ok=true;}catch(e){}
+    if(req.method==='POST'&&ok){try{const act=u.query.act;if(act==='code')Claims.issue(claims,w);else if(act==='check')Claims.check(claims,w);save();}catch(e){return json(res,Object.assign(Claims.status(claims,w),{error:e.message}),400);}}
+    return json(res,Claims.status(claims,ok?w:''));}
   if(p==='/api/rpc'&&req.method==='POST'){let b='';for await(const ch of req){b+=ch;if(b.length>4096)break;}let j;try{j=JSON.parse(b);}catch(e){return json(res,{error:'bad json'},400);}
     const ok=['getLatestBlockhash','getSignatureStatuses','getBalance','getAccountInfo','getTokenAccountBalance'];const ip=req.headers['x-forwarded-for']||req.socket.remoteAddress;
     const now=Date.now();const r=rl.get(ip)||[];const recent=r.filter(t=>now-t<60000);if(recent.length>60)return json(res,{error:'rate limited'},429);recent.push(now);rl.set(ip,recent);

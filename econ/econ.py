@@ -11,7 +11,7 @@ PARAMS=dict(creator_to_pool=0.7, interv_to_pool=0.4, yield_share=0.85, bonus_spl
             max_paid_per_wallet=10)
 def run(vol,fee,n_int,int_px,base_rel,days=30,mix=(.2,.4,.3,.1),free_per_day=None,sybil=0,whale_mult=1,P=PARAMS,seed=0,demand=None,vol_fn=None,seed_pool=0.0,boost_days=0,boost_share=1.0,price0=5.0):
     rnd=random.Random(seed); bal=float(seed_pool); price=price0; yavg=None; hist=[]; per_rel=[]; players={}
-    free_per_day = int(base_rel*0.5) if free_per_day is None else free_per_day
+    free_per_day = int(base_rel*0.2) if free_per_day is None else free_per_day  # assumption: new players claiming their one free microbe
     burned=[]
     for d in range(days):
         v=vol_fn(d) if vol_fn else vol; cshare=boost_share if d<boost_days else P['creator_to_pool']
