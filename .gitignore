@@ -7,3 +7,4 @@ data/
 *.log
 screenshot*.png
 brand/
+__pycache__/
