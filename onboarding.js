@@ -4,7 +4,7 @@
 const $=id=>document.getElementById(id),GK='primordial.guide';
 const steps=[
  ['Pick a creature','Look at the dish. Every speck is a living creature with a small brain. Click one to see what it is thinking. When you are ready, choose a name for a creature of your own.'],
- ['Release it, free','Press Release your first creature. Connect a Solana wallet so prizes can reach you. Your first release costs nothing except a network fee of a fraction of a cent.'],
+ ['Release it, free','Press Release a creature. Connect a Solana wallet so prizes can reach you. One release per day is free and earns a quarter of a paid one. It costs only a network fee of a fraction of a cent.'],
  ['Watch it, get paid while it lives','Your creature eats, splits and evolves without you. At the end of each season the species with the most living descendants share the prize pool, paid in SOL to their releasers.']];
 let i=0;
 function show(){$('gstep').textContent=`Step ${i+1} of 3`;$('gtitle').textContent=steps[i][0];$('gbody').textContent=steps[i][1];$('gnext').firstChild.textContent=i===2?'Start':'Next';}

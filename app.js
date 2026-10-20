@@ -187,12 +187,15 @@ const STAR='<svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><
 function row(id,mineFlag){const S=W.species[id],st=lineStats(id),li=document.createElement('li');li.className='lrow'+(selLine===id?' on':'');
   li.innerHTML=`<span class="nm"></span><span class="sc">${st.alive} alive, gen ${st.maxGen}, ${trend(id,st.alive)}${mineFlag?', yours':''}</span><span class="est">${estimate(id)}</span><span class="btns"><button class="lk">Locate</button><button class="tr">Track</button><button class="st${follows.has(id)?' on':''}" title="Follow">${STAR}</button></span>`;
   li.querySelector('.nm').textContent=spName(S)+'  no. '+id;li.querySelector('.lk').onclick=()=>locate(id);li.querySelector('.tr').onclick=()=>track(id);li.querySelector('.st').onclick=()=>toggleFollow(id);return li;}
-// PLACEHOLDER earnings estimate. The economy model is being re-simulated; this is clearly labelled on screen.
-function estimate(id){const sc=W.scores(),me=sc.findIndex(x=>x.sp===id);if(me<0||me>2)return 'Est. earnings: none yet, not in the top three';const pool=(ledger&&ledger.pool||0)/1e9,sh=CFG.cfg.split[me],hrs=CFG.cfg.epochTicks/(CFG.hz||30)/3600;return `Est. earnings, placeholder: about ${(pool*sh/hrs).toFixed(4)} SOL per hour if it keeps place ${me+1}`;}
+// Earnings estimate from the server: this hour's projected share of the yield budget, plus what the lineage has earned so far.
+function estimate(id){const E=ledger&&ledger.eco;if(!E)return '';const sol=l=>(l/1e9).toFixed(4)+' SOL',usd=l=>'$'+(l/1e9*E.solUsd).toFixed(2);
+  const est=E.est[id]||0,got=E.earned[id]||0;if(!est&&!got)return W.species[id]&&W.species[id].released?'Earns once it has been alive for part of an hour':'Wild lineage, earns nothing';
+  return `This hour, about ${usd(est)} (${sol(est)}). Earned so far ${usd(got)}.${E.free[id]?' Free release, earns a quarter.':''}`;}
+function estimateOld(id){const sc=W.scores(),me=sc.findIndex(x=>x.sp===id);if(me<0||me>2)return 'Est. earnings: none yet, not in the top three';const pool=(ledger&&ledger.pool||0)/1e9,sh=CFG.cfg.split[me],hrs=CFG.cfg.epochTicks/(CFG.hz||30)/3600;return `Est. earnings, placeholder: about ${(pool*sh/hrs).toFixed(4)} SOL per hour if it keeps place ${me+1}`;}
 function lineStats(id){let alive=0,maxGen=0;for(const k of W.c)if(rootOf(k)===id){alive++;if(k.gen>maxGen)maxGen=k.gen;}return{alive,maxGen};}
 function drawLines(){const ol=$('mylines');if(!ol||!W)return;ol.innerHTML='';const mine=new Set();if(wallet)for(const s of W.species)if(s.released&&s.root===s.id&&s.owner===wallet)mine.add(s.id);
   const ids=myLines();for(const id of ids)ol.append(row(id,mine.has(id)));
-  if(!ids.length)ol.innerHTML='<li class="muted">Connect a wallet to see species you released, or star any specimen to follow it.</li>';
+  if(!ids.length)ol.innerHTML='<li class="muted">Nothing here yet. Release a creature and it shows up here. You can also click any creature in the tank and press Follow lineage to keep an eye on it.</li>';
   const q=$('lsearch').value.trim().toLowerCase(),res=$('lresults');res.innerHTML='';if(!q)return;
   const hits=[];for(const s of W.species){if(lineOf(s.id)!==s.id)continue;const nm=spName(s).toLowerCase();if(String(s.id)===q||nm.includes(q)){if(s.count>0||(s.released&&lineStats(s.id).alive>0))hits.push(s.id);}if(hits.length>=6)break;}
   for(const id of hits)res.append(row(id,mine.has(id)));if(!hits.length)res.innerHTML='<li class="muted">No living lineage matches.</li>';}
@@ -267,7 +270,9 @@ async function loadLedger(){try{ledger=await (await fetch('/api/ledger')).json()
   const rows=[].concat(ledger.burns.map(b=>({t:b.at,txt:`Burned ${Math.round(b.tokens).toLocaleString('en-US')} ${tk()} for ${b.solIn.toFixed(3)} SOL, dry run`,sig:b.sig})),ledger.commits.slice(-6).map(c=>({t:c.t,txt:`Committed hash ${c.h} at epoch ${c.t}`,sig:c.sig})));
   for(const r of rows.slice(-10).reverse()){const li=document.createElement('li');li.innerHTML=`<span></span><a target="_blank"></a>`;li.firstChild.textContent=r.txt;li.lastChild.href=explorer(r.sig);li.lastChild.textContent='tx';cl.append(li);}
   if(!rows.length)cl.innerHTML='<li><span class="muted">No burns or commits yet.</span></li>';
-  drawLog();}
+  drawEco();drawLog();}
+function drawEco(){const E=ledger&&ledger.eco;if(!E)return;$('relprice').textContent='$'+E.price.toFixed(2);
+  $('priceline').textContent=`Today's release price $${E.price.toFixed(2)} (${(E.priceLamports/1e9).toFixed(4)} SOL), yesterday avg return ${E.yAvg==null?'not measured yet':E.yAvg.toFixed(2)+'x'}. New releases are protected from disasters for ${Math.round(E.rules.shieldS/60)} minutes.`;}
 const LBL={food:'Food bloom',meteor:'Meteor strike',cold:'Cold front',toxic:'Toxic bloom',release:'Released',trait:'Evolved'};
 function drawLog(){const ol=$('log');ol.innerHTML='';if(!ledger)return;
   for(const e of ledger.recent.slice().reverse()){const li=document.createElement('li');const b=document.createElement('b');b.textContent=String(e.at).padStart(6,'0');const s=document.createElement('span');
@@ -286,7 +291,7 @@ const provider=()=>window.phantom&&window.phantom.solana||window.solflare||windo
 async function connectWallet(){const pv=provider();if(!pv){toast('No Solana wallet found. Install Phantom or Solflare and switch it to devnet.');return false;}
   const r=await pv.connect();setTimeout(drawLines,50);wallet=(r&&r.publicKey||pv.publicKey).toString();$('who').textContent=short(wallet);$('connect').firstChild.textContent='Connected';drawSkill();return true;}
 $('connect').onclick=connectWallet;
-window.__prim={wallet:()=>wallet,connect:connectWallet,releaseFree:n=>buy(Object.assign({t:'release',name:n,free:1},mark?{x:mark[0],y:mark[1]}:{}),0,0),locate:id=>locate(id)};
+window.__prim={wallet:()=>wallet,connect:connectWallet,releaseFree:n=>{const m=mark||bestVent();return buy(Object.assign({t:'release',name:n,free:1},m?{x:m[0],y:m[1]}:{}),0,0);},locate:id=>locate(id)};
 function toast(html){const t=$('toast');t.hidden=false;t.innerHTML=html;}
 async function buy(memo,lamports,burnTokens){const pv=provider();if(!pv||!wallet){toast('Connect a wallet first.');return;}
   const w3=window.solanaWeb3,conn=new w3.Connection(location.origin+CFG.rpc,'confirmed'),me=new w3.PublicKey(wallet),tx=new w3.Transaction();
@@ -303,7 +308,13 @@ async function buy(memo,lamports,burnTokens){const pv=provider();if(!pv||!wallet
   toast(`Entered the log at epoch ${r.event.at}. <a target="_blank" href="${explorer(sig)}">View tx</a>  <a target="_blank" href="${share(evText(r.event),'/e/'+r.event.n)}">Share on X</a>`);loadLedger();}
 document.querySelectorAll('[data-ev]').forEach(b=>b.addEventListener('click',()=>{const t=b.dataset.ev;if(t==='none')return;const m=Object.assign({t:t==='foodburn'?'food':t},mark?{x:mark[0],y:mark[1]}:{});
   if(t==='foodburn')buy(m,0,CFG.foodBurn);else buy(m,CFG.prices[t],0);}));
-$('release').addEventListener('submit',e=>{e.preventDefault();const n=$('spname').value.trim().replace(/[^\w .'-]/g,'').slice(0,24);if(!n)return;buy(Object.assign({t:'release',name:n},mark?{x:mark[0],y:mark[1]}:{}),CFG.prices.release,0);});
+$('release').addEventListener('submit',e=>{e.preventDefault();const n=$('spname').value.trim().replace(/[^\w .'-]/g,'').slice(0,24);if(!n)return;const L=ledger&&ledger.eco?ledger.eco.priceLamports:CFG.eco.priceLamports;buy(Object.assign({t:'release',name:n},mark?{x:mark[0],y:mark[1]}:{}),L,0);});
+// Recommended start: mark the warm vent with the most algae nearby and suggest the first trait.
+function bestVent(){let best=null,bv=-1;for(const v of W.vents){let n=0;for(const f of W.food){const dx=f.x-v[0],dy=f.y-v[1];if(dx*dx+dy*dy<3600)n++;}if(n>bv){bv=n;best=v;}}return best;}
+$('recstart').onclick=()=>{const v=bestVent();if(!v)return;mark=[Math.round(v[0]),Math.round(v[1])];const r=$('recnote');r.hidden=false;
+  r.textContent='Mark set on the warm vent with the most food. Release there, then burn for Efficient digestion as soon as your lineage reaches generation 3. That is what the best players do first.';
+  view.ox=450-v[0]*view.z;view.oy=450-v[1]*view.z;};
+window.__prim.bestVent=()=>bestVent();
 // ---------- loop
 let frame=0;
 function catchUp(){target=predicted();const t0=performance.now();while(W.tick<target&&performance.now()-t0<14)stepOne();}

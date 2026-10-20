@@ -1,6 +1,6 @@
 const pp=require('puppeteer-core');
 (async()=>{const br=await pp.launch({executablePath:'/usr/bin/google-chrome',headless:'new',args:['--no-sandbox','--window-size=1440,1500']});
-  const open=async q=>{const bx=await pp.launch({executablePath:'/usr/bin/google-chrome',headless:'new',args:['--no-sandbox']});const p=await bx.newPage();await p.setViewport({width:1440,height:1500});p.on('pageerror',e=>console.log('pageerror',e.message));await p.goto('http://localhost:8765/'+q,{waitUntil:'load'});return p;};
+  const open=async q=>{const bx=await pp.launch({executablePath:'/usr/bin/google-chrome',headless:'new',args:['--no-sandbox']});const p=await bx.newPage();await p.setViewport({width:1440,height:1500});p.on('pageerror',e=>console.log('pageerror',e.message));await p.goto((process.env.BASE||'http://localhost:8765')+'/'+q,{waitUntil:'load'});return p;};
   const a=await open(process.env.Q||'?pick=released&zoom=4');await new Promise(r=>setTimeout(r,20000));
   const b=await open('');  // late joiner
   await new Promise(r=>setTimeout(r,36000));
@@ -9,4 +9,4 @@ const pp=require('puppeteer-core');
   console.log(JSON.stringify({aChecks:ha.length,bChecks:hb.length,common},null,1));
   require('fs').writeFileSync(__dirname+'/data/e2e-sync.json',JSON.stringify(common,null,1));
   await a.screenshot({path:__dirname+'/screenshot-sync.png'});
-  await b.goto('http://localhost:8765/?pick=released',{waitUntil:'load'});await new Promise(r=>setTimeout(r,6000));await b.screenshot({path:__dirname+'/screenshot-sync-full.png'});process.exit(0);})();
+  await b.goto((process.env.BASE||'http://localhost:8765')+'/?pick=released',{waitUntil:'load'});await new Promise(r=>setTimeout(r,6000));await b.screenshot({path:__dirname+'/screenshot-sync-full.png'});process.exit(0);})();

@@ -13,18 +13,27 @@ const post=async sig=>(await fetch(BASE+'/api/submit',{method:'POST',body:JSON.s
     if(burn){const ata=spl.getAssociatedTokenAddressSync(MINT,kp.publicKey);ixs.push(spl.createBurnInstruction(ata,MINT,kp.publicKey,BigInt(burn)*1000000n));}
     ixs.push(C.memoIx('primordial:v1:'+JSON.stringify(memo),kp.publicKey));return C.send(ixs,[kp]);};
   const out={};const log=(k,v)=>{out[k]=v;console.log(k,JSON.stringify(v));};
-  let s=await pay(A,{t:'release',name:'Lantern Drifter',x:300,y:320},cfg.prices.release);log('releaseA',{sig:s,res:(await post(s)).ok});
+  let s=await pay(A,{t:'release',name:'Lantern Drifter',x:300,y:320},cfg.eco.priceLamports);log('releaseA',{sig:s,res:(await post(s)).ok});
   log('replaySameSig',await post(s));
-  s=await pay(B,{t:'release',name:'Ash Weaver',x:620,y:560},cfg.prices.release);log('releaseB',{sig:s,res:(await post(s)).ok});
+  s=await pay(B,{t:'release',name:'Ash Weaver',x:620,y:560},cfg.eco.priceLamports);log('releaseB',{sig:s,res:(await post(s)).ok});
+  s=await pay(B,{t:'release',name:'Under Price'},cfg.eco.priceLamports-10);log('releaseUnderPrice',{res:await post(s)});
+  s=await pay(A,{t:'release',name:'Burn Paid'},0,cfg.eco.priceTokens);log('releaseByBurn',{res:(await post(s)).ok});
+  s=await pay(A,{t:'release',name:'Free One',free:1},0);log('freeRelease',{res:(await post(s)).ok});
+  s=await pay(A,{t:'release',name:'Free Two',free:1},0);log('freeSecondSameDay',{res:await post(s)});
+  const N=C.load('player3');await C.fund(N);s=await pay(N,{t:'release',name:'New Wallet',free:1},0);log('freeNewEmptyWallet',{res:await post(s)});
   s=await pay(A,{t:'food',x:310,y:330},cfg.prices.food);log('foodSol',{sig:s,res:(await post(s)).ok});
   s=await pay(B,{t:'food',x:600,y:560},0,50);log('foodBurn',{sig:s,res:(await post(s)).ok});
   s=await pay(A,{t:'meteor'},cfg.prices.meteor-1);log('underpaidMeteor',{sig:s,res:await post(s)});
   s=await pay(B,{t:'meteor',x:700,y:300},cfg.prices.meteor);log('meteor',{sig:s,res:(await post(s)).ok});
+  s=await pay(A,{t:'meteor',x:300,y:300},cfg.prices.meteor);log('meteorCooldown',{res:await post(s)});
   // trait: wait until Lantern Drifter lineage is eligible for sense1 (gen 3)
   const led=await (await fetch(BASE+'/api/ledger')).json();const rel=led.recent.find(e=>e.name==='Lantern Drifter');
   let sp=null;for(let i=0;i<90;i++){const snap=await (await fetch(BASE+'/api/snapshot')).json();const S=snap.state.species.find(x=>x.released&&x.name==='Lantern Drifter'&&x.root===x.id);if(S){sp=S.id;const gens=snap.state.c.filter(k=>snap.state.species[k.sp].root===S.id).map(k=>k.gen);if(gens.length&&Math.max(...gens)>=3)break;}await new Promise(r=>setTimeout(r,2000));}
   s=await pay(B,{t:'trait',sp,trait:'sense1'},0,100);log('traitByNonOwner',{sig:s,res:await post(s)});
   s=await pay(A,{t:'trait',sp,trait:'sense1'},0,100);log('traitSense1',{sig:s,res:await post(s)});
   s=await pay(A,{t:'trait',sp,trait:'meta1'},0,100);log('traitMeta1',{sig:s,res:await post(s)});
+  // wait for an hourly yield close and a payout transaction
+  for(let i=0;i<60;i++){const l=await (await fetch(BASE+'/api/ledger')).json();if(l.eco.hours.some(h=>h.yield>0)&&l.eco.earned&&Object.keys(l.eco.earned).length){log('yieldHour',l.eco.hours.filter(h=>h.yield>0).slice(-1)[0]);log('earned',l.eco.earned);break;}await new Promise(r=>setTimeout(r,2000));}
+  const b0=await conn.getBalance(A.publicKey);for(let i=0;i<40;i++){const l=await (await fetch(BASE+'/api/ledger')).json();if(l.eco&&(await conn.getBalance(A.publicKey))>b0){log('payoutReceivedLamports',(await conn.getBalance(A.publicKey))-b0);break;}await new Promise(r=>setTimeout(r,2000));}
   require('fs').writeFileSync(__dirname+'/data/e2e-result.json',JSON.stringify(out,null,1));
 })().catch(e=>{console.error('E2E error',e.message);process.exit(1);});

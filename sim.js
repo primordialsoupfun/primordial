@@ -65,17 +65,19 @@ class World{
     const r=()=>this.rnd();ev.ok=true;
     if(ev.type==='food'){let cx=ev.x,cy=ev.y;if(cx==null)[cx,cy]=this.rp();for(let i=0;i<260;i++){const a=r()*2-1,b=r()*2-1;if(a*a+b*b>1)continue;this.addFood(cx+a*80,cy+b*80,.5);}}
     if(ev.type==='meteor'){let cx=ev.x,cy=ev.y;if(cx==null)[cx,cy]=this.rp();const rr=110;this.disasters++;
-      this.c=this.c.filter(k=>{const dx=k.x-cx,dy=k.y-cy;if(dx*dx+dy*dy>rr*rr)return true;const p=this.has(k.sp,'armor2')?.55:this.has(k.sp,'armor1')?.3:0;return r()<p;});
+      this.c=this.c.filter(k=>{const dx=k.x-cx,dy=k.y-cy;if(dx*dx+dy*dy>rr*rr)return true;if(this.shielded(k))return true;const p=this.has(k.sp,'armor2')?.55:this.has(k.sp,'armor1')?.3:0;return r()<p;});
       this.food=this.food.filter(f=>{const dx=f.x-cx,dy=f.y-cy;return dx*dx+dy*dy>rr*rr;});this.craters.push({x:cx,y:cy,r:rr,t:this.tick});this.markSurvivors();}
     if(ev.type==='cold'){this.cold=700;this.disasters++;this.pendingSurvive=this.tick+700;}
     if(ev.type==='toxic'){let cx=ev.x,cy=ev.y;if(cx==null)[cx,cy]=this.rp();this.toxic.push({x:cx,y:cy,r:140,until:this.tick+1200});this.disasters++;this.pendingSurvive=this.tick+1200;}
     if(ev.type==='release'){const sp=this.newSpecies(null,this.randGenome(),String(ev.name||'Unnamed').slice(0,24),ev.owner||'anon');
-      let cx=ev.x,cy=ev.y;if(cx==null)[cx,cy]=this.rp();ev.sp=sp.id;
+      let cx=ev.x,cy=ev.y;if(cx==null)[cx,cy]=this.rp();ev.sp=sp.id;if(ev.shield)sp.shieldUntil=this.tick+ev.shield;
       for(let i=0;i<40;i++)this.spawn(this.mut(sp.g,.1),sp.id,cx+(r()-.5)*60,cy+(r()-.5)*60,1.4);}
     if(ev.type==='trait'){const S=this.species[ev.sp];
       if(!S||S.owner!==ev.owner||S.root!==S.id||!this.eligible(ev.sp,ev.trait)){ev.ok=false;return;}
       for(const s of this.species)if(s.root===S.id&&s.traits.indexOf(ev.trait)<0)s.traits.push(ev.trait);}
   }
+  // newborn protection: a released lineage carrying a shield ignores disasters until shieldUntil (set only by events that carry ev.shield)
+  shielded(k){const S=this.species[this.species[k.sp].root];return S.shieldUntil>this.tick;}
   markSurvivors(){for(const s of this.species)if(s.count>0)s.disastersSurvived++;}
   grid(list){const G=new Map();for(let i=0;i<list.length;i++){const o=list[i];const key=((o.x/CELL)|0)*GW+((o.y/CELL)|0);let a=G.get(key);if(!a)G.set(key,a=[]);a.push(i);}return G;}
   sense(G,list,x,y,rad,cb){const x0=((x-rad)/CELL)|0,x1=((x+rad)/CELL)|0,y0=((y-rad)/CELL)|0,y1=((y+rad)/CELL)|0;let s=0;
@@ -110,7 +112,7 @@ class World{
       const nx=k.x-CX,ny=k.y-CY,d2=nx*nx+ny*ny;
       if(d2>R*R){const d=Math.sqrt(d2);k.x=CX+nx/d*R;k.y=CY+ny/d*R;k.dx=-k.dx;k.dy=-k.dy;}
       const base=.0016*(h('meta1')?.8:1)*(h('armor2')?1.15:1),move=thrust*.0022*(h('loco1')?1.1:1)*(h('meta2')?.9:1);
-      const coldC=cold*.0024*(h('res1')?.4:1),toxC=tox*.009*(h('res2')?.35:1);
+      const shd=(cold||tox)&&this.shielded(k),coldC=shd?0:cold*.0024*(h('res1')?.4:1),toxC=shd?0:tox*.009*(h('res2')?.35:1);
       let symb=0;if(h('symb'))symb=Math.min(.0008,(nl+nr)*.00015);
       k.e-=base+move+coldC+toxC-symb;
       const gain=h('pred')?.75:1; // predators digest algae less well

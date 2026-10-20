@@ -37,11 +37,11 @@
     <p class="kicker">A living experiment you can join</p>
     <h1>Release a creature. Keep its species alive. Earn SOL while it survives.</h1>
     <p class="lede">Every creature in this dish has a tiny brain that learns by natural selection. Put one in, help it adapt, and the longest surviving species share the prize pool each season.</p>
-    <div class="cta"><button id="ctaRelease" class="primary"><span>Release your first creature (free)</span></button><a class="how" href="/how">How it works</a></div>
+    <div class="cta"><button id="ctaRelease" class="primary"><span>Release a creature (free today)</span></button><a class="how" href="/how">How it works</a></div>
   </div>
   <ol class="steps">
     <li><b>1</b><span><i>Pick</i> a name for your creature.</span></li>
-    <li><b>2</b><span><i>Release</i> it into the dish. Your first one is free.</span></li>
+    <li><b>2</b><span><i>Release</i> it into the dish. One release a day is free.</span></li>
     <li><b>3</b><span><i>Watch</i> it live. If its species survives, you get paid.</span></li>
   </ol>
 </section>
@@ -57,9 +57,9 @@
 
 <div id="releaseDlg" class="guide" hidden>
   <div class="card">
-    <p class="gstep">Your first release is free</p>
+    <p class="gstep">Your free release for today</p>
     <h2>Name your creature</h2>
-    <p>It enters the dish with 40 siblings. Its descendants carry your name. You only need a Solana wallet so the prize can find you. The first release costs nothing but a network fee of a fraction of a cent.</p>
+    <p>It enters the dish with 40 siblings next to a warm vent, protected from disasters for 10 minutes. Its descendants carry your name and earn a quarter of what a paid release earns. You need a Solana wallet at least 7 days old, or one holding $5 of SOUP, so the payout can find you. It costs only a network fee of a fraction of a cent.</p>
     <div class="row dlgrow"><input id="freeName" maxlength="24" placeholder="For example, Lantern Drifter" autocomplete="off"></div>
     <p class="muted small" id="dlgNote"></p>
     <div class="gnav"><button id="dlgCancel" class="link">Not now</button><button id="dlgGo" class="primary"><span>Connect wallet and release</span></button></div>
@@ -72,12 +72,12 @@
       <canvas id="tank" width="900" height="900"></canvas>
       <div class="zoom"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">-</button><button id="zreset">1:1</button></div>
     </div>
-    <p class="caption"><span class="fig">Fig. 1</span> The tank at epoch <span id="tick2">0</span>. Scroll to magnify, drag to move. Click an organism to examine it, or click open water to set a mark for your intervention. <span id="sync" class="sync">Connecting</span></p>
+    <p class="caption"><span class="fig">Fig. 1</span> The tank at epoch <span id="tick2">0</span>. Scroll to magnify, drag to move. Click an organism to examine it, or click open water to set a mark for your intervention. <span id="sync" class="sync">Joining the live tank, this takes a few seconds.</span></p>
     <p id="camnote" class="camnote" hidden></p>
 
     <section class="block below">
       <h2>Hall of Survivors</h2>
-      <p class="hint">At the close of each season the tank scores every released lineage by descendants alive and time survived. The top three releasers share the survival pool, 50, 30 and 20 percent. Anyone can recompute the result from the public event log.</p>
+      <p class="hint">Every hour the pool pays every released lineage that is alive, more for the longer its creatures live. Once a day, the three lineages that lived longest that day also share a small bonus, 50, 30 and 20 percent. Lineages younger than two hours cannot take the bonus.</p>
       <div class="hall"><div><h3>Standing now</h3><ol id="standing" class="rank"></ol></div><div><h3>Past seasons</h3><ol id="seasons" class="rank"></ol></div></div>
     </section>
   </section>
@@ -103,8 +103,11 @@
         <button data-ev="none" disabled><span class="muted">Drought</span><em>soon</em></button>
       </div>
       <form id="release" class="release">
-        <label for="spname">Release a named species. Twenty percent of the fee funds the survival pool, the rest is burned.</label>
-        <div class="row"><input id="spname" maxlength="24" placeholder="Name, plain text" autocomplete="off"><button type="submit"><span>Release</span><em>0.10 SOL</em></button></div>
+        <label for="spname">Release a named species. The whole price is burned. Your lineage earns from the pool every hour it stays alive.</label>
+        <div class="row"><input id="spname" maxlength="24" placeholder="Name, plain text" autocomplete="off"><button type="submit"><span>Release</span><em id="relprice">today</em></button></div>
+        <p id="priceline" class="hint"></p>
+        <div class="row"><button type="button" id="recstart" class="ghost"><span>Recommended start</span></button></div>
+        <p id="recnote" class="hint" hidden></p>
       </form>
       <div id="toast" class="toast" hidden></div>
     </section>

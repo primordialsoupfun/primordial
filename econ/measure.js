@@ -14,4 +14,4 @@ for(let t=0;t<T;t++){const ev=[];
   if(t%SAMPLE===0){const cnt=new Map();for(const k of w.c){const ro=w.species[k.sp].root;cnt.set(ro,(cnt.get(ro)||0)+1);}
     for(const r of rel)r.traj.push(cnt.get(r.sp)||0);r_tot=w.c.length;(globalThis.tot=globalThis.tot||[]).push(w.c.length);}
 }
-console.log(JSON.stringify({seed,wx,sample:SAMPLE,tot:globalThis.tot,rel:rel.map(r=>({skilled:r.skilled,born:r.born,traits:w.species[r.sp].traits,traj:r.traj.slice(Math.ceil(r.born/SAMPLE))}))}));
+console.log(JSON.stringify({seed,wx,sample:SAMPLE,tot:globalThis.tot,rel:rel.map(r=>({skilled:r.skilled,born:r.born,traits:w.species[r.sp].traits,traj:r.traj}))}));
