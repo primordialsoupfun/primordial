@@ -73,6 +73,12 @@
       <div class="loading" aria-live="polite"><svg viewBox="0 0 60 60" width="54" height="54" aria-hidden="true"><circle cx="30" cy="30" r="26" fill="none" stroke="currentColor" stroke-width="1.2"/><path class="spin" d="M30 4a26 26 0 0 1 26 26" fill="none" stroke="#c9531a" stroke-width="2.2" stroke-linecap="round"/></svg><span>Joining the live tank</span></div>
       <div class="zoom"><button id="zin" aria-label="Zoom in" title="Zoom in (+)">+</button><button id="zout" aria-label="Zoom out" title="Zoom out (-)">&minus;</button><button id="zreset" aria-label="Reset view" title="Reset view (0)">1:1</button></div>
       <p id="zhint" class="zhint">Scroll or pinch to zoom, drag to move</p>
+      <div id="zcard" class="zcard" hidden></div>
+      <div class="zlegend" aria-label="Map legend"><p>Territory</p>
+        <span><svg viewBox="0 0 22 22" aria-hidden="true"><path d="M5 20V3" stroke="#111314" stroke-width="1.2"/><path d="M5 3.5q6-1.5 12 1.5l-3.5 3 3.5 3q-6-2.5-12-.5z" fill="#c9531a" stroke="#111314" stroke-width=".9"/></svg>Held, flag in the holder's colour</span>
+        <span><svg viewBox="0 0 22 22" aria-hidden="true"><path d="M5 20V3" stroke="#111314" stroke-width="1.2"/><circle cx="5" cy="3" r="1.4" fill="#111314"/></svg>Bare pole, unclaimed</span>
+        <span class="muted">Hover or tap a zone for details</span></div>
+      <div id="fastnote" class="fastnote" hidden><span>Running fast? Refresh to resync.</span><button id="fastgo" type="button">Refresh</button></div>
     </div>
     <p class="caption"><span class="fig">Fig. 1</span> The tank at tick <span id="tick2">0</span>. Scroll to zoom, drag to move, click a creature to examine it, or click open water to mark where an intervention lands. <span id="sync" class="sync">Joining the live tank</span></p>
     <p id="camnote" class="camnote" hidden></p>

@@ -37,7 +37,8 @@ async function boot(){
 async function resync(){const s=await (await fetch('/api/snapshot')).json();W=P.World.fromJSON(s.state);evAt=new Map();for(const e of s.events)addEv(e);target=s.serverTick;
   while(W.tick<target)stepOne();window.__world=W;perf.joinMs=performance.now()-T0;perf.joinTicks=target-s.tick;}
 const perf=window.__perf={step:0,steps:0,draw:0,draws:0,joinMs:0,frames:0};const T0=performance.now();
-function stepOne(){const evs=evAt.get(W.tick)||[];const t=performance.now();W.step(evs);perf.step+=performance.now()-t;perf.steps++;evAt.delete(W.tick-1);
+const speed={n:0,at:performance.now(),hi:0,ok:0};
+function stepOne(){speed.n++;const evs=evAt.get(W.tick)||[];const t=performance.now();W.step(evs);perf.step+=performance.now()-t;perf.steps++;evAt.delete(W.tick-1);
   if(srvHash.has(W.tick))checkHash(W.tick);}
 function checkHash(t){if(W.tick!==t||!srvHash.has(t))return;{const h=srvHash.get(t);srvHash.delete(t);const mine=W.hash();hashOk=mine===h;window.__hashes=(window.__hashes||[]).concat([[W.tick,mine,h]]);
   setSync(hashOk?`Live. Your view matches the server, check ${mine} at tick ${W.tick}.`:'Out of step, reloading the tank.',hashOk);if(!hashOk)resync();}}
@@ -154,7 +155,7 @@ const frost=document.createElement('canvas');frost.width=900;frost.height=900;
 // ---------- territory: zone outlines, holder banners, ink spread on capture
 const capture=new Map();
 function holderName(h){return h<0?'unclaimed':spName(W.species[h]);}
-function drawZones(c){if(!W.pvp)return;const s=(view.z<2?1.6:1)/view.z,now=performance.now();
+function drawZones(c){if(!W.pvp)return;if(W.pvp.v===2)return drawZones2(c);const s=(view.z<2?1.6:1)/view.z,now=performance.now();
   for(const z of W.pvp.zones){const prev=capture.get(z.name);if(!prev)capture.set(z.name,{h:z.h,at:0});else if(prev.h!==z.h){prev.h=z.h;prev.at=now;}
     const cp=capture.get(z.name),q=cp.at?Math.min(1,(now-cp.at)/1400):1,col=z.h>=0?W.species[z.h].col:[91,85,74],mine=z.h>=0&&W.species[z.h].released;
     if(q<1){const e=1-Math.pow(1-q,3);c.fillStyle=`rgba(${col},${.28*(1-q)})`;c.beginPath();for(let i=0;i<=24;i++){const a=i/24*6.283,w=1+.07*Math.sin(i*2.7+z.x);c.lineTo(z.x+Math.cos(a)*z.r*e*w,z.y+Math.sin(a)*z.r*e*w);}c.fill();}
@@ -164,6 +165,49 @@ function drawZones(c){if(!W.pvp)return;const s=(view.z<2?1.6:1)/view.z,now=perfo
     c.font=`italic ${10.5*s}px ${SERIF}`;const tw=Math.max(c.measureText(z.h>=0?holderName(z.h):'unclaimed').width,z.name.length*5.6*s)+10*s;c.fillStyle='rgba(243,237,219,.78)';c.fillRect(z.x-tw/2,by+3*s,tw,25*s);
     c.textAlign='center';c.textBaseline='alphabetic';c.fillStyle=INK;c.font=`${8.5*s}px ${MONO}`;c.fillText(z.name.toUpperCase(),z.x,by+12*s);
     c.fillStyle=mine?RUST:INK2;c.font=`italic ${10.5*s}px ${SERIF}`;c.fillText(z.h>=0?holderName(z.h):'unclaimed',z.x,by+24*s);}}
+// ---------- territory v2: pre-rendered land map (borders once, tint on holder change), cartographic labels, waving pennants
+const ZL={key:'',fine:null,border:null,tint:null,tintKey:'',spread:new Map()};const FS=3,FN=300;
+function zoneMaps(){const z=W.pvp.zones,key=W.seed+':'+z.map(q=>q.name).join();if(ZL.key===key)return;ZL.key=key;ZL.tintKey='';
+  const F=new Uint8Array(FN*FN);for(let y=0;y<FN;y++)for(let x=0;x<FN;x++)F[y*FN+x]=W.zoneAtPoint(x*FS+1,y*FS+1,z);ZL.fine=F;
+  const b=document.createElement('canvas');b.width=b.height=1800;const c=b.getContext('2d');c.scale(2,2);c.lineCap='round';
+  let s=11;const rnd=()=>(s=(s*16807)%2147483647)/2147483647;
+  for(const [col,w] of [['rgba(17,19,20,.16)',3.2],['rgba(17,19,20,.62)',.9]]){c.strokeStyle=col;c.lineWidth=w;c.beginPath();
+    for(let y=0;y<FN-1;y++)for(let x=0;x<FN-1;x++){const a=F[y*FN+x];if(a===255)continue;const r=F[y*FN+x+1],d=F[(y+1)*FN+x];const j=()=>(rnd()-.5)*.8;
+      if(r!==a&&r!==255){c.moveTo((x+1)*FS+j(),y*FS+j());c.lineTo((x+1)*FS+j(),(y+1)*FS+j());}
+      if(d!==a&&d!==255){c.moveTo(x*FS+j(),(y+1)*FS+j());c.lineTo((x+1)*FS+j(),(y+1)*FS+j());}}c.stroke();}
+  ZL.border=b;}
+function zoneTint(){const z=W.pvp.zones,key=z.map(q=>q.h).join();if(ZL.tintKey===key)return;ZL.tintKey=key;
+  const cv=ZL.tint||(ZL.tint=document.createElement('canvas'));cv.width=cv.height=FN;const c=cv.getContext('2d'),im=c.createImageData(FN,FN),F=ZL.fine;
+  for(let i=0;i<F.length;i++){const q=F[i];if(q===255)continue;const Z=z[q];if(Z.h<0)continue;const col=W.species[Z.h].col,hatch=((i%FN)+((i/FN)|0))%6<2;
+    im.data[i*4]=col[0];im.data[i*4+1]=col[1];im.data[i*4+2]=col[2];im.data[i*4+3]=hatch?46:20;}c.putImageData(im,0,0);}
+function zoneMask(q,col){const cv=document.createElement('canvas');cv.width=cv.height=FN;const c=cv.getContext('2d'),im=c.createImageData(FN,FN),F=ZL.fine;
+  for(let i=0;i<F.length;i++)if(F[i]===q){im.data[i*4]=col[0];im.data[i*4+1]=col[1];im.data[i*4+2]=col[2];im.data[i*4+3]=150;}c.putImageData(im,0,0);return cv;}
+function drawZones2(c){zoneMaps();zoneTint();const Z=W.pvp.zones,now=performance.now(),s=(view.z<2?1.5:1)/view.z;
+  c.imageSmoothingEnabled=true;c.drawImage(ZL.tint,0,0,900,900);
+  Z.forEach((z,i)=>{const p=capture.get(z.name);if(!p)capture.set(z.name,{h:z.h,at:0});else if(p.h!==z.h){p.h=z.h;p.at=now;if(z.h>=0)ZL.spread.set(i,zoneMask(i,W.species[z.h].col));}
+    const cp=capture.get(z.name),m=ZL.spread.get(i);if(m&&cp.at){const q=Math.min(1,(now-cp.at)/1600);if(q>=1){ZL.spread.delete(i);return;}const e=1-Math.pow(1-q,3);
+      c.save();c.beginPath();for(let k=0;k<=28;k++){const a=k/28*6.283,w=1+.12*Math.sin(k*2.3+i);c.lineTo(z.cx+Math.cos(a)*260*e*w,z.cy+Math.sin(a)*260*e*w);}c.clip();c.globalAlpha=.9*(1-q*q);c.drawImage(m,0,0,900,900);c.restore();c.globalAlpha=1;}});
+  c.drawImage(ZL.border,0,0,900,900);
+  // labels
+  c.textAlign='center';c.textBaseline='alphabetic';
+  Z.forEach((z,i)=>{const held=z.h>=0,col=held?W.species[z.h].col:null,x=z.cx,y=z.cy,mine=held&&W.species[z.h].released;
+    c.font=`${10*s}px ${SERIF}`;if('letterSpacing' in c)c.letterSpacing=`${2.2*s}px`;const nm=z.name.toUpperCase();const tw=c.measureText(nm).width;
+    c.fillStyle='rgba(243,237,219,.72)';c.fillRect(x-tw/2-5*s,y+2*s,tw+10*s,held?28*s:16*s);
+    c.fillStyle=INK;c.fillText(nm,x,y+13*s);if('letterSpacing' in c)c.letterSpacing='0px';
+    if(held){c.font=`italic ${10.5*s}px ${SERIF}`;c.fillStyle=mine?RUST:INK2;c.fillText(holderName(z.h),x,y+26*s);}
+    // pole and pennant
+    const px=x,py=y-2*s,top=py-26*s;c.strokeStyle=INK;c.lineWidth=1*s;c.beginPath();c.moveTo(px,py);c.lineTo(px,top);c.stroke();c.fillStyle=INK;c.beginPath();c.arc(px,top,1.4*s,0,7);c.fill();
+    if(held){const t=now/700+i*1.7,w1=Math.sin(t)*2.2*s,w2=Math.sin(t+1.3)*2.6*s;
+      c.fillStyle=`rgb(${col})`;c.beginPath();c.moveTo(px,top+1*s);c.quadraticCurveTo(px+9*s,top-1*s+w1,px+19*s,top+3*s+w2);c.lineTo(px+13*s,top+7.5*s+w2*.6);c.lineTo(px+19*s,top+12*s+w2);c.quadraticCurveTo(px+9*s,top+9*s+w1,px,top+12*s);c.closePath();c.fill();
+      c.strokeStyle=INK;c.lineWidth=.8*s;c.stroke();
+      c.strokeStyle='rgba(17,19,20,.35)';c.lineWidth=.5*s;c.beginPath();c.moveTo(px+3*s,top+4*s+w1*.4);c.lineTo(px+12*s,top+5*s+w1*.8);c.moveTo(px+3*s,top+8.5*s+w1*.4);c.lineTo(px+11*s,top+9.5*s+w1*.8);c.stroke();}});}
+// zone card on hover or tap
+function zoneCard(sx,sy,wx,wy){const el=$('zcard');if(!W.pvp||W.pvp.v!==2){el.hidden=true;return;}const q=W.zoneIndex(wx,wy);if(q===255){el.hidden=true;return;}
+  const z=W.pvp.zones[q],held=z.h>=0;el.innerHTML=`<p class="zk">Zone</p><h3></h3><p class="zh"></p><p class="zr">The lineage with the most living mass here holds this zone and flies its flag. A rival needs 15 percent more to take it.</p>`;
+  el.querySelector('h3').textContent=z.name;el.querySelector('.zh').textContent=held?`Held by ${holderName(z.h)} since tick ${z.since}.`:'Unclaimed. The first lineage to settle here takes it.';
+  const r=tank.getBoundingClientRect(),k=r.width/900;el.hidden=false;const L=Math.min(r.width-el.offsetWidth-8,Math.max(8,sx*k+14)),T=Math.max(8,Math.min(r.height-el.offsetHeight-8,sy*k+14));el.style.left=L+'px';el.style.top=T+'px';}
+tank.addEventListener('pointermove',e=>{if(e.pointerType!=='mouse'||ptrs.size)return;const[x,y,sx,sy]=toWorld(e);zoneCard(sx,sy,x,y);});
+tank.addEventListener('pointerleave',()=>{$('zcard').hidden=true;});
 // ---------- battle feed
 function feedText(e){const n=id=>`<i>${esc(holderName(id))}</i>`;
   if(e.k==='zone')return `${n(e.a)} took the ${e.z}${e.b>=0?' from '+n(e.b):''}.`;
@@ -257,8 +301,8 @@ tank.addEventListener('pointermove',e=>{if(!ptrs.has(e.pointerId))return;ptrs.se
 function endPtr(e){if(!ptrs.has(e.pointerId))return;ptrs.delete(e.pointerId);
   if(pinch){if(ptrs.size<2)pinch=null;drag=null;return;}
   if(drag&&!drag.moved&&e.type==='pointerup'){const now=performance.now(),[sx,sy]=scr(e);
-    if(now-lastTap.t<320&&Math.hypot(sx-lastTap.x,sy-lastTap.y)<40){lastTap.t=0;zoomSmooth(2,sx,sy);hintSeen();}
-    else{lastTap={t:now,x:sx,y:sy};pick(e);}}
+    if(now-lastTap.t<320&&Math.hypot(sx-lastTap.x,sy-lastTap.y)<40){lastTap.t=0;clearTimeout(endPtr.t);zoomSmooth(2,sx,sy);hintSeen();}
+    else{lastTap={t:now,x:sx,y:sy};const ev={clientX:e.clientX,clientY:e.clientY},touch=e.pointerType!=='mouse';clearTimeout(endPtr.t);endPtr.t=setTimeout(()=>{if(lastTap.t!==now)return;pick(ev);if(touch){const[x,y,a,b]=toWorld(ev);zoneCard(a,b,x,y);}},300);}}
   drag=null;}
 tank.addEventListener('pointerup',endPtr);tank.addEventListener('pointercancel',endPtr);
 tank.addEventListener('dblclick',e=>e.preventDefault());
@@ -374,6 +418,12 @@ window.__prim.bestVent=()=>bestVent();
 let frame=0;
 function catchUp(){target=predicted();const t0=performance.now();while(W.tick<target&&performance.now()-t0<14)stepOne();}
 setInterval(()=>{if(W)catchUp();},33);
+// Running fast: more than 45 ticks per real second for over 2 s, or far behind the server. Hide again once normal for 2 s.
+setInterval(()=>{if(!W||document.hidden)return;const now=performance.now(),tps=speed.n*1000/(now-speed.at);speed.n=0;speed.at=now;const gap=srvTick-W.tick;
+  if(tps>45||gap>150){speed.hi++;speed.ok=0;}else{speed.ok++;speed.hi=0;}const el=$('fastnote');if(speed.hi>=2)el.hidden=false;else if(speed.ok>=2)el.hidden=true;},1000);
+$('fastgo').onclick=()=>location.reload();
+// Returning to a hidden tab: jump to the latest checkpoint instead of fast-forwarding through the backlog.
+document.addEventListener('visibilitychange',()=>{if(document.hidden||!W)return;speed.n=0;speed.at=performance.now();if(predicted()-W.tick>300){setSync('Catching up with the live tank.',true);resync().then(()=>{speed.n=0;speed.at=performance.now();});}});
 let lastDraw=0,lastTickDrawn=-1,viewKey='',lastDom=0,lastBrain=0,lastSlow=0;
 function loop(now){catchUp();requestAnimationFrame(loop);
   if(qs.get('sp')&&!sel){const id=+qs.get('sp');sel=W.c.find(k=>k.sp===id||W.species[k.sp].root===id)||null;if(sel){drawSpecimen();drawSkill();}}

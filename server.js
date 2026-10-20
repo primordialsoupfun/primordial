@@ -36,6 +36,8 @@ try{if(fs.existsSync(SNAP)){const sn=JSON.parse(fs.readFileSync(SNAP,'utf8'));if
 const target=ledger.lastTick||0;while(W.tick<target)stepWorld();
 // PvP (territory, hunting feed) switches on at a fixed tick recorded in the ledger, so older history replays unchanged.
 if(ledger.cfg.pvpFrom==null){ledger.cfg.pvpFrom=Math.ceil((W.tick+LEAD+600)/150)*150;save();}W.cfg.pvpFrom=ledger.cfg.pvpFrom;
+// Territory v2 (land-like zones) from a fixed future tick, same pattern.
+if(ledger.cfg.pvp2From==null){ledger.cfg.pvp2From=Math.max(ledger.cfg.pvpFrom,Math.ceil((W.tick+LEAD+900)/150)*150);save();}W.cfg.pvp2From=ledger.cfg.pvp2From;
 snapshot={tick:W.tick,state:JSON.stringify(W)};
 
 // SSE
