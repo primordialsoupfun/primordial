@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How it works | Primordial</title><link rel="canonical" href="https://primordialsoup.fun/how">
+<link rel="icon" href="/icons/favicon.ico" sizes="any"><link rel="stylesheet" href="/style.css">
+<style>
+.page{max-width:980px;margin:0 auto;padding:34px 48px 60px}
+.page h1{font-weight:400;font-style:italic;font-size:44px;margin:0 0 6px}
+.page h2{font-weight:400;font-size:13px;font-family:var(--mono);letter-spacing:.16em;text-transform:uppercase;border-bottom:1px solid var(--ink);padding-bottom:6px;margin:38px 0 14px}
+.page p,.page li{font-size:17px;color:var(--ink2);max-width:720px}
+.page ol{padding-left:22px}
+svg text{font-family:"Iowan Old Style",Palatino,Georgia,serif}
+.note{border-left:2px solid var(--rust);padding:8px 12px;background:var(--paper2)}
+</style></head>
+<body>
+<header class="masthead"><div class="mark"><img class="seal" src="/icons/icon-512.png" alt="" width="56" height="56"><div><span class="title">Primordial</span><span class="sub">How it works</span></div></div><a href="/">Back to the dish</a></header>
+<main class="page">
+<h1>How it works</h1>
+<p>Primordial is one shared dish of living creatures. Each creature has a tiny brain that was never programmed. It inherits a slightly changed copy of its parent's brain, and only the ones that find food and avoid danger live long enough to split. That is natural selection, running live, in the same way for everyone who opens the page.</p>
+
+<h2>Playing in three steps</h2>
+<ol>
+<li><b>Pick</b> a name for your creature.</li>
+<li><b>Release</b> it into the dish with forty siblings. Your first release is free. Later ones cost 0.10 SOL.</li>
+<li><b>Watch</b> it. You can feed it, evolve it with traits, or just let it be. At the end of each season the three released species with the most living descendants and the longest survival share the prize pool.</li>
+</ol>
+
+<h2>Where the money goes</h2>
+<svg viewBox="0 0 900 360" width="100%" role="img" aria-label="Money flow diagram">
+ <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#111314"/></marker>
+ <marker id="r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#c9531a"/></marker></defs>
+ <g fill="none" stroke="#111314" stroke-width="1.2">
+  <rect x="20" y="40" width="210" height="110"/><rect x="20" y="210" width="210" height="110"/>
+  <rect x="345" y="125" width="210" height="110"/>
+  <rect x="670" y="40" width="210" height="110" stroke="#c9531a"/><rect x="670" y="210" width="210" height="110"/>
+  <path d="M230 95 C290 95 290 160 343 165" marker-end="url(#a)"/><path d="M230 265 C290 265 290 200 343 195" marker-end="url(#a)"/>
+  <path d="M555 160 C610 150 610 95 668 95" stroke="#c9531a" marker-end="url(#r)"/><path d="M555 200 C610 210 610 265 668 265" marker-end="url(#a)"/>
+ </g>
+ <g font-size="19" fill="#111314"><text x="38" y="80" font-style="italic">Players release</text><text x="38" y="250" font-style="italic">Players intervene</text><text x="363" y="165" font-style="italic">Treasury</text><text x="688" y="80" font-style="italic" fill="#c9531a">Prize pool</text><text x="688" y="250" font-style="italic">Buy back and burn</text></g>
+ <g font-size="14" fill="#55524a"><text x="38" y="108">0.10 SOL per creature</text><text x="38" y="128">first one free</text>
+ <text x="38" y="278">food, meteors, cold,</text><text x="38" y="298">toxic blooms</text>
+ <text x="363" y="193">every payment is checked</text><text x="363" y="213">on chain before it counts</text>
+ <text x="688" y="108">20 percent of release fees</text><text x="688" y="128">paid to the top 3 survivors</text>
+ <text x="688" y="278">everything else buys SOUP</text><text x="688" y="298">and destroys it for good</text></g>
+</svg>
+<p>Holders of SOUP do not need to do anything. Each burn shrinks the supply, and every burn, prize payment and world checkpoint is a public Solana transaction linked on the site.</p>
+
+<h2>What the numbers mean</h2>
+<ul>
+<li><b>Time, ticks.</b> How long the dish has been running. About thirty ticks pass each second.</li>
+<li><b>Creatures alive.</b> Every living organism in the dish.</li>
+<li><b>Species alive.</b> A new species appears when offspring drift far enough from their parents.</li>
+<li><b>SOUP burned.</b> Tokens permanently destroyed with player fees.</li>
+<li><b>Prize pool.</b> SOL waiting for this season's surviving releasers.</li>
+</ul>
+<p class="note">Earning estimates on the site are placeholders while the economy model is being re-simulated. Prizes depend on how other players do, and nothing guarantees a payout. This is a test network prototype.</p>
+
+<h2>Is it fair?</h2>
+<p>The dish is a pure function of a public starting seed and the ordered log of every paid action. Your browser runs the same simulation and checks its result against the server every few seconds. Anyone can replay the full history and arrive at the same creatures, the same winners and the same payouts.</p>
+</main>
+</body></html>

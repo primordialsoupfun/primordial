@@ -9,7 +9,7 @@ const CFG={epochTicks:+process.env.EPOCH_TICKS||3000,prizeShare:+process.env.PRI
 const COMMIT_TICKS=+process.env.COMMIT_TICKS||1500,BURN_INTERVAL=+process.env.BURN_INTERVAL_S||120,MOCK_RATE=+process.env.MOCK_RATE||100000; // tokens per SOL, dry-run quote
 const L=web3.LAMPORTS_PER_SOL;
 const PRICES={food:0.01*L,meteor:0.05*L,cold:0.03*L,toxic:0.03*L,release:0.10*L};
-const FOOD_BURN=50; // tokens, alternative to SOL for feeding
+const FOOD_BURN=50,FREE_PER_DAY=+process.env.FREE_PER_DAY||200; // tokens, alternative to SOL for feeding
 const DATA=process.env.DATA_DIR||__dirname+'/data';require('fs').mkdirSync(DATA,{recursive:true});const _D=0,LEDGER=DATA+'/ledger.json';
 let ledger=fs.existsSync(LEDGER)?JSON.parse(fs.readFileSync(LEDGER)):{seed:SEED,cfg:CFG,events:[],used:{},revenue:0,pool:0,burnQueue:0,burns:[],commits:[],payouts:[],tokensBurned:0,traitBurned:0};
 const save=()=>fs.writeFileSync(LEDGER,JSON.stringify(ledger,null,1));
@@ -78,6 +78,9 @@ async function verify(sig){
     const S=W.species[m.sp|0];if(!S||S.owner!==payer||S.root!==S.id)throw new Error('only the releaser can evolve this species');if(!W.eligible(S.id,m.trait))throw new Error('milestone not reached or branch locked');
     ev.sp=S.id;ev.trait=m.trait;ev.burned=burned;ledger.traitBurned+=burned;ledger.tokensBurned+=burned;}
   else if(m.t==='food'&&burned>=FOOD_BURN){ev.burned=burned;ledger.tokensBurned+=burned;}
+  else if(m.t==='release'&&m.free){ledger.freeUsed=ledger.freeUsed||{};const day=new Date().toISOString().slice(0,10);ledger.freeDay=ledger.freeDay||{};
+    if(ledger.freeUsed[payer])throw new Error('your free release has been used, further releases cost 0.10 SOL');if((ledger.freeDay[day]||0)>=FREE_PER_DAY)throw new Error('free releases are full for today, try again tomorrow');
+    const name=String(m.name||'').replace(/[^\w .'-]/g,'').trim().slice(0,24);if(!name)throw new Error('name required');ev.name=name;ev.free=true;ledger.freeUsed[payer]=1;ledger.freeDay={[day]:(ledger.freeDay[day]||0)+1};}
   else{const price=PRICES[m.t];if(!price)throw new Error('unknown event');if(lam<price)throw new Error('payment below price');
     ev.lamports=lam;ledger.revenue+=lam;
     if(m.t==='release'){const name=String(m.name||'').replace(/[^\w .'-]/g,'').trim().slice(0,24);if(!name)throw new Error('name required');ev.name=name;const pool=Math.floor(lam*CFG.prizeShare);ledger.pool+=pool;ledger.burnQueue+=lam-pool;}
@@ -99,8 +102,8 @@ function cardData(kind,id){
     return {kicker:'Hall of Survivors, epoch '+p.epoch,title:w.name,subtitle:`First place. ${w.alive} descendants alive after ${w.ticks} ticks.`,sp:S,root:S,tick:p.tick,stats:p.winners.map(x=>['Place '+x.place,x.name])};}
 }
 // Cache busting: asset URLs carry the deployed commit (or a content hash locally).
-const VER=(process.env.RENDER_GIT_COMMIT||'').slice(0,7)||require('crypto').createHash('sha1').update(['app.js','audio.js','sim.js','organism.js','card.js','style.css','index.html'].map(f=>fs.readFileSync(__dirname+'/'+f)).join('')).digest('hex').slice(0,8);
-let _idx=null;function indexHtml(){if(!_idx||!process.env.RENDER_GIT_COMMIT)_idx=fs.readFileSync(__dirname+'/index.html','utf8').replace(/(src|href)="(\/?)(vendor\/web3\.js|sim\.js|organism\.js|card\.js|app\.js|audio\.js|style\.css)"/g,(m,a,sl,f)=>`${a}="/${f}?v=${VER}"`);return _idx;}
+const VER=(process.env.RENDER_GIT_COMMIT||'').slice(0,7)||require('crypto').createHash('sha1').update(['app.js','audio.js','onboarding.js','how.html','sim.js','organism.js','card.js','style.css','index.html'].map(f=>fs.readFileSync(__dirname+'/'+f)).join('')).digest('hex').slice(0,8);
+let _idx=null;function indexHtml(){if(!_idx||!process.env.RENDER_GIT_COMMIT)_idx=fs.readFileSync(__dirname+'/index.html','utf8').replace(/(src|href)="(\/?)(vendor\/web3\.js|sim\.js|organism\.js|card\.js|app\.js|audio\.js|onboarding\.js|style\.css)"/g,(m,a,sl,f)=>`${a}="/${f}?v=${VER}"`);return _idx;}
 const short=a=>a&&a.length>12?a.slice(0,4)+'...'+a.slice(-4):a||'unknown';
 let canvasMod=null;try{canvasMod=require('@napi-rs/canvas');}catch(e){}
 function ogPng(d){const c=canvasMod.createCanvas(1200,630);Card.card(c.getContext('2d'),d,Org,{serif:'serif',mono:'monospace'});return c.toBuffer('image/png');}
@@ -128,10 +131,10 @@ http.createServer(async(req,res)=>{
   let m;
   if((m=p.match(/^\/og\/(species|event|hall)\/(\d+)\.png$/))){const d=cardData(m[1],+m[2]);if(!d||!canvasMod){res.writeHead(200,{'content-type':'image/png'});return fs.createReadStream(__dirname+'/icons/og-fallback.png').pipe(res);}res.writeHead(200,{'content-type':'image/png','cache-control':'max-age=60'});return res.end(ogPng(d));}
   if((m=p.match(/^\/(s|e|h)\/(\d+)$/)))return sharePage(res,{s:'species',e:'event',h:'hall'}[m[1]],+m[2],req.headers.host);
-  let f=p==='/'?'/index.html':p;if(f.startsWith('/vendor/web3.js'))f='/node_modules/@solana/web3.js/lib/index.iife.min.js';
+  let f=p==='/'?'/index.html':p==='/how'?'/how.html':p;if(f.startsWith('/vendor/web3.js'))f='/node_modules/@solana/web3.js/lib/index.iife.min.js';
   if(/^\/icons\/(favicon\.ico|favicon-32\.png|apple-touch-icon\.png|icon-512\.png|og-fallback\.png)$/.test(f)){res.writeHead(200,{'content-type':f.endsWith('.ico')?'image/x-icon':'image/png','cache-control':'max-age=86400'});return fs.createReadStream(__dirname+f).pipe(res);}
   if(f==='/favicon.ico'){res.writeHead(200,{'content-type':'image/x-icon'});return fs.createReadStream(__dirname+'/icons/favicon.ico').pipe(res);}
-  const allowed=['/index.html','/style.css','/sim.js','/organism.js','/card.js','/app.js','/audio.js','/audio/ambient.mp3','/node_modules/@solana/web3.js/lib/index.iife.min.js'];
+  const allowed=['/index.html','/style.css','/sim.js','/organism.js','/card.js','/app.js','/audio.js','/onboarding.js','/how.html','/audio/ambient.mp3','/node_modules/@solana/web3.js/lib/index.iife.min.js'];
   if(!allowed.includes(f)){res.writeHead(404);return res.end('not found');}
   if(f==='/index.html'){res.writeHead(200,{'content-type':MIME['.html'],'cache-control':'no-cache'});return res.end(indexHtml());}
   res.writeHead(200,{'content-type':MIME[path.extname(f)]||'application/octet-stream','cache-control':u.query.v?'public, max-age=31536000, immutable':'no-cache'});fs.createReadStream(__dirname+f).pipe(res);

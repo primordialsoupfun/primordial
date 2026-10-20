@@ -185,8 +185,10 @@ function trend(r,alive){const h=hist.get(r)||[];const now=W.tick;if(!h.length||n
   const d=alive-h[0][1];return d>2?'+'+d:d<-2?String(d):'steady';}
 const STAR='<svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><path d="M10 2.2l2.3 5 5.4.5-4.1 3.6 1.2 5.3L10 13.9l-4.8 2.7 1.2-5.3-4.1-3.6 5.4-.5z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>';
 function row(id,mineFlag){const S=W.species[id],st=lineStats(id),li=document.createElement('li');li.className='lrow'+(selLine===id?' on':'');
-  li.innerHTML=`<span class="nm"></span><span class="sc">${st.alive} alive, gen ${st.maxGen}, ${trend(id,st.alive)}${mineFlag?', yours':''}</span><span class="btns"><button class="lk">Locate</button><button class="tr">Track</button><button class="st${follows.has(id)?' on':''}" title="Follow">${STAR}</button></span>`;
+  li.innerHTML=`<span class="nm"></span><span class="sc">${st.alive} alive, gen ${st.maxGen}, ${trend(id,st.alive)}${mineFlag?', yours':''}</span><span class="est">${estimate(id)}</span><span class="btns"><button class="lk">Locate</button><button class="tr">Track</button><button class="st${follows.has(id)?' on':''}" title="Follow">${STAR}</button></span>`;
   li.querySelector('.nm').textContent=spName(S)+'  no. '+id;li.querySelector('.lk').onclick=()=>locate(id);li.querySelector('.tr').onclick=()=>track(id);li.querySelector('.st').onclick=()=>toggleFollow(id);return li;}
+// PLACEHOLDER earnings estimate. The economy model is being re-simulated; this is clearly labelled on screen.
+function estimate(id){const sc=W.scores(),me=sc.findIndex(x=>x.sp===id);if(me<0||me>2)return 'Est. earnings: none yet, not in the top three';const pool=(ledger&&ledger.pool||0)/1e9,sh=CFG.cfg.split[me],hrs=CFG.cfg.epochTicks/(CFG.hz||30)/3600;return `Est. earnings, placeholder: about ${(pool*sh/hrs).toFixed(4)} SOL per hour if it keeps place ${me+1}`;}
 function lineStats(id){let alive=0,maxGen=0;for(const k of W.c)if(rootOf(k)===id){alive++;if(k.gen>maxGen)maxGen=k.gen;}return{alive,maxGen};}
 function drawLines(){const ol=$('mylines');if(!ol||!W)return;ol.innerHTML='';const mine=new Set();if(wallet)for(const s of W.species)if(s.released&&s.root===s.id&&s.owner===wallet)mine.add(s.id);
   const ids=myLines();for(const id of ids)ol.append(row(id,mine.has(id)));
@@ -281,8 +283,10 @@ $('cardpng').onclick=()=>{if(!sel)return;const s=W.species[sel.sp],st=W.lineageS
   const a=document.createElement('a');a.href=cv.toDataURL('image/png');a.download=`primordial-${s.id}.png`;a.click();};
 // ---------- wallet + payments
 const provider=()=>window.phantom&&window.phantom.solana||window.solflare||window.solana||null;
-$('connect').onclick=async()=>{const pv=provider();if(!pv){toast('No Solana wallet found. Install Phantom or Solflare and switch it to devnet.');return;}
-  const r=await pv.connect();setTimeout(drawLines,50);wallet=(r&&r.publicKey||pv.publicKey).toString();$('who').textContent=short(wallet);$('connect').firstChild.textContent='Connected';drawSkill();};
+async function connectWallet(){const pv=provider();if(!pv){toast('No Solana wallet found. Install Phantom or Solflare and switch it to devnet.');return false;}
+  const r=await pv.connect();setTimeout(drawLines,50);wallet=(r&&r.publicKey||pv.publicKey).toString();$('who').textContent=short(wallet);$('connect').firstChild.textContent='Connected';drawSkill();return true;}
+$('connect').onclick=connectWallet;
+window.__prim={wallet:()=>wallet,connect:connectWallet,releaseFree:n=>buy(Object.assign({t:'release',name:n,free:1},mark?{x:mark[0],y:mark[1]}:{}),0,0),locate:id=>locate(id)};
 function toast(html){const t=$('toast');t.hidden=false;t.innerHTML=html;}
 async function buy(memo,lamports,burnTokens){const pv=provider();if(!pv||!wallet){toast('Connect a wallet first.');return;}
   const w3=window.solanaWeb3,conn=new w3.Connection(location.origin+CFG.rpc,'confirmed'),me=new w3.PublicKey(wallet),tx=new w3.Transaction();

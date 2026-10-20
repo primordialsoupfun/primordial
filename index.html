@@ -23,14 +23,48 @@
     <span class="sub">A shared tank of evolving life. Plate I.</span></div>
   </div>
   <dl class="ledger">
-    <div><dt>Epoch</dt><dd id="tick">0</dd></div>
-    <div><dt>Organisms</dt><dd id="pop">0</dd></div>
-    <div><dt>Living species</dt><dd id="nsp">0</dd></div>
-    <div><dt><span class="tk">SOUP</span> burned</dt><dd id="burn">0</dd></div>
-    <div><dt>Survival pool</dt><dd id="pool">0</dd></div>
+    <div title="How long this tank has been running. One tick is about a thirtieth of a second."><dt>Time, ticks</dt><dd id="tick">0</dd></div>
+    <div title="Creatures alive in the tank right now."><dt>Creatures alive</dt><dd id="pop">0</dd></div>
+    <div title="Distinct species alive. New species appear when offspring drift far enough from their parents."><dt>Species alive</dt><dd id="nsp">0</dd></div>
+    <div title="Tokens permanently destroyed with the fees players pay. Every burn is a public transaction."><dt><span class="tk">SOUP</span> burned</dt><dd id="burn">0</dd></div>
+    <div title="SOL waiting to be paid to the players whose released species are still alive at the end of the season."><dt>Prize pool</dt><dd id="pool">0</dd></div>
   </dl>
   <div class="wallet"><div class="wrow"><button id="sound" class="sound" aria-label="Sound" aria-pressed="true" title="Sound"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M3 9.5h4l5-4v13l-5-4H3z" fill="currentColor"/><g class="waves" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M15.5 9c1 .8 1.5 1.8 1.5 3s-.5 2.2-1.5 3"/><path d="M18 6.5c1.8 1.4 2.8 3.4 2.8 5.5s-1 4.1-2.8 5.5"/></g><path class="mute" d="M15.5 9.5l5 5m0-5l-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button><button id="connect" class="ghost"><span>Connect wallet</span></button></div><span id="who" class="mono"></span></div>
 </header>
+
+<section class="hero">
+  <div class="hero-text">
+    <p class="kicker">A living experiment you can join</p>
+    <h1>Release a creature. Keep its species alive. Earn SOL while it survives.</h1>
+    <p class="lede">Every creature in this dish has a tiny brain that learns by natural selection. Put one in, help it adapt, and the longest surviving species share the prize pool each season.</p>
+    <div class="cta"><button id="ctaRelease" class="primary"><span>Release your first creature (free)</span></button><a class="how" href="/how">How it works</a></div>
+  </div>
+  <ol class="steps">
+    <li><b>1</b><span><i>Pick</i> a name for your creature.</span></li>
+    <li><b>2</b><span><i>Release</i> it into the dish. Your first one is free.</span></li>
+    <li><b>3</b><span><i>Watch</i> it live. If its species survives, you get paid.</span></li>
+  </ol>
+</section>
+
+<div id="guide" class="guide" hidden>
+  <div class="card">
+    <p class="gstep" id="gstep">Step 1 of 3</p>
+    <h2 id="gtitle">Pick a creature</h2>
+    <p id="gbody"></p>
+    <div class="gnav"><button id="gskip" class="link">Skip</button><button id="gnext" class="primary"><span>Next</span></button></div>
+  </div>
+</div>
+
+<div id="releaseDlg" class="guide" hidden>
+  <div class="card">
+    <p class="gstep">Your first release is free</p>
+    <h2>Name your creature</h2>
+    <p>It enters the dish with 40 siblings. Its descendants carry your name. You only need a Solana wallet so the prize can find you. The first release costs nothing but a network fee of a fraction of a cent.</p>
+    <div class="row dlgrow"><input id="freeName" maxlength="24" placeholder="For example, Lantern Drifter" autocomplete="off"></div>
+    <p class="muted small" id="dlgNote"></p>
+    <div class="gnav"><button id="dlgCancel" class="link">Not now</button><button id="dlgGo" class="primary"><span>Connect wallet and release</span></button></div>
+  </div>
+</div>
 
 <main class="layout">
   <section class="plate">
@@ -61,11 +95,11 @@
       <h2>Intervene</h2>
       <p class="hint">Interventions land at your mark, or at a random place if none is set. Each one enters the public log and is replayed identically in every browser. <span id="markinfo"></span></p>
       <div class="actions">
-        <button data-ev="food"><span>Food bloom</span><em>0.01 SOL</em></button>
-        <button data-ev="foodburn"><span>Food bloom</span><em>burn 50</em></button>
-        <button data-ev="meteor"><span>Meteor strike</span><em>0.05 SOL</em></button>
-        <button data-ev="cold"><span>Cold front</span><em>0.03 SOL</em></button>
-        <button data-ev="toxic"><span>Toxic bloom</span><em>0.03 SOL</em></button>
+        <button data-ev="food" title="Drop food at your mark. Any species nearby can eat it. Costs 0.01 SOL."><span>Food bloom</span><em>0.01 SOL</em></button>
+        <button data-ev="foodburn" title="Same food drop, paid by burning 50 SOUP instead of SOL."><span>Food bloom</span><em>burn 50</em></button>
+        <button data-ev="meteor" title="A meteor hits your mark and wipes out most creatures in a wide circle. Costs 0.05 SOL."><span>Meteor strike</span><em>0.05 SOL</em></button>
+        <button data-ev="cold" title="The whole dish gets cold for about 25 seconds. Creatures burn energy faster and food grows slower. Costs 0.03 SOL."><span>Cold front</span><em>0.03 SOL</em></button>
+        <button data-ev="toxic" title="A poisonous patch opens at your mark for about 40 seconds. Costs 0.03 SOL."><span>Toxic bloom</span><em>0.03 SOL</em></button>
         <button data-ev="none" disabled><span class="muted">Drought</span><em>soon</em></button>
       </div>
       <form id="release" class="release">
@@ -115,5 +149,6 @@
 <script src="card.js"></script>
 <script src="app.js"></script>
 <script src="audio.js"></script>
+<script src="onboarding.js"></script>
 </body>
 </html>
