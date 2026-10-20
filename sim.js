@@ -117,7 +117,7 @@ class World{
       k.e-=base+move+coldC+toxC-symb;
       const gain=h('pred')?.75:1; // predators digest algae less well
       this.sense(FG,this.food,k.x,k.y,5,(f,i)=>{if(!eaten[i]){eaten[i]=1;k.e+=f.v*gain;}return 0;});
-      if(h('pred')&&k.e<1.6){this.sense(CG,this.c,k.x,k.y,6,(o,i)=>{if(i!==ci&&!dead[i]&&o.sp!==k.sp&&this.species[o.sp].root!==this.species[k.sp].root&&o.e<k.e&&!(this.has(o.sp,'armor2')&&r()<.5)){dead[i]=1;k.e+=Math.min(.6,o.e*.6);}return 0;});}
+      if(h('pred')&&k.e<1.6){this.sense(CG,this.c,k.x,k.y,6,(o,i)=>{if(i!==ci&&!dead[i]&&o.sp!==k.sp&&this.species[o.sp].root!==this.species[k.sp].root&&o.e<k.e&&!(this.has(o.sp,'armor2')&&r()<.5)){dead[i]=1;k.e+=Math.min(.6,o.e*.6);if(this.pvp)this.onKill(k,o);}return 0;});}
       k.age++;
       const repro=h('meta2')?2.1:1.9;
       if(k.e>repro){k.e=k.e*.5-.02;born.push(k);}
@@ -135,10 +135,13 @@ class World{
     for(const s of this.species){s.count=0;}for(const k of this.c){const s=this.species[k.sp];s.count++;if(k.gen>s.maxGen)s.maxGen=k.gen;}
     for(const s of this.species){if(s.count>s.peak)s.peak=s.count;if(s.count===0&&s.died<0&&s.peak>0)s.died=this.tick;if(s.count>0)s.died=-1;}
     if(this.tick%this.cfg.epochTicks===0)this.closeEpoch();
+    if(this.pvpTick)this.pvpTick();
   }
   // Released-species score: descendants alive across the whole lineage + survival time.
   scores(){const out=[];for(const s of this.species){if(!s.released||s.root!==s.id)continue;
       const st=this.lineageStats(s.id);if(st.alive===0)continue;out.push({sp:s.id,name:s.name,owner:s.owner,alive:st.alive,ticks:this.tick-s.born,score:st.alive*10+Math.floor((this.tick-s.born)/100)});}
+    // territory and hunting, display only: payout math lives in economy.js and is not changed here (it can read W.zonesOf(root))
+    if(this.pvp)for(const o of out){o.zones=this.zonesOf(o.sp);o.kills=this.pvp.kills[o.sp]||0;}
     out.sort((a,b)=>b.score-a.score||a.sp-b.sp);return out;}
   closeEpoch(){const sc=this.scores().slice(0,this.cfg.split.length);this.epochs.push({epoch:this.epochs.length+1,tick:this.tick,winners:sc.map((w,i)=>Object.assign({},w,{place:i+1,share:this.cfg.split[i]}))});}
   hash(){let h=0x811c9dc5;const mix=v=>{h^=v&0xffffffff;h=Math.imul(h,16777619)>>>0;};
@@ -152,5 +155,5 @@ class World{
     w.species=o.species.map(s=>Object.assign({},s,{g:Float32Array.from(s.g)}));return w;}
 }
 g.Primordial={World,R,CX,CY,NI,NH,NO,TREE,TRAIT_BURN,CFG};
-if(typeof module!=='undefined')module.exports=g.Primordial;
+if(typeof module!=='undefined'){module.exports=g.Primordial;require('./pvp.js')(g.Primordial);}
 })(typeof window!=='undefined'?window:globalThis);

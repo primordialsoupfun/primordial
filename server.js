@@ -34,6 +34,8 @@ const SNAP=DATA+'/snapshot.json';
 try{if(fs.existsSync(SNAP)){const sn=JSON.parse(fs.readFileSync(SNAP,'utf8'));if(sn.seed===ledger.seed&&sn.events<=ledger.events.length){W=P.World.fromJSON(sn.state);
   console.log('resumed from checkpoint at tick',W.tick);}}}catch(e){console.error('checkpoint unreadable, replaying',e.message);W=new P.World(ledger.seed,ledger.cfg);}
 const target=ledger.lastTick||0;while(W.tick<target)stepWorld();
+// PvP (territory, hunting feed) switches on at a fixed tick recorded in the ledger, so older history replays unchanged.
+if(ledger.cfg.pvpFrom==null){ledger.cfg.pvpFrom=Math.ceil((W.tick+LEAD+600)/150)*150;save();}W.cfg.pvpFrom=ledger.cfg.pvpFrom;
 snapshot={tick:W.tick,state:JSON.stringify(W)};
 
 // SSE
@@ -123,8 +125,8 @@ function cardData(kind,id){
     return {kicker:'Hall of Survivors, epoch '+p.epoch,title:w.name,subtitle:`First place. ${w.alive} descendants alive after ${w.ticks} ticks.`,sp:S,root:S,tick:p.tick,stats:p.winners.map(x=>['Place '+x.place,x.name])};}
 }
 // Cache busting: asset URLs carry the deployed commit (or a content hash locally).
-const VER=(process.env.RENDER_GIT_COMMIT||'').slice(0,7)||require('crypto').createHash('sha1').update(['app.js','audio.js','onboarding.js','how.html','sim.js','organism.js','card.js','style.css','index.html'].map(f=>fs.readFileSync(__dirname+'/'+f)).join('')).digest('hex').slice(0,8);
-let _idx=null;function indexHtml(){if(!_idx||!process.env.RENDER_GIT_COMMIT)_idx=fs.readFileSync(__dirname+'/index.html','utf8').replace(/(src|href)="(\/?)(vendor\/web3\.js|sim\.js|organism\.js|card\.js|app\.js|audio\.js|onboarding\.js|style\.css)"/g,(m,a,sl,f)=>`${a}="/${f}?v=${VER}"`);return _idx;}
+const VER=(process.env.RENDER_GIT_COMMIT||'').slice(0,7)||require('crypto').createHash('sha1').update(['app.js','audio.js','onboarding.js','how.html','sim.js','pvp.js','organism.js','card.js','style.css','index.html'].map(f=>fs.readFileSync(__dirname+'/'+f)).join('')).digest('hex').slice(0,8);
+let _idx=null;function indexHtml(){if(!_idx||!process.env.RENDER_GIT_COMMIT)_idx=fs.readFileSync(__dirname+'/index.html','utf8').replace(/(src|href)="(\/?)(vendor\/web3\.js|sim\.js|pvp\.js|organism\.js|card\.js|app\.js|audio\.js|onboarding\.js|style\.css)"/g,(m,a,sl,f)=>`${a}="/${f}?v=${VER}"`);return _idx;}
 const short=a=>a&&a.length>12?a.slice(0,4)+'...'+a.slice(-4):a||'unknown';
 let canvasMod=null;try{canvasMod=require('@napi-rs/canvas');}catch(e){}
 function ogPng(d){const c=canvasMod.createCanvas(1200,630);Card.card(c.getContext('2d'),d,Org,{serif:'serif',mono:'monospace'});return c.toBuffer('image/png');}
@@ -155,7 +157,7 @@ http.createServer(async(req,res)=>{
   let f=p==='/'?'/index.html':p==='/how'?'/how.html':p;if(f.startsWith('/vendor/web3.js'))f='/node_modules/@solana/web3.js/lib/index.iife.min.js';
   if(/^\/icons\/(favicon\.ico|favicon-32\.png|apple-touch-icon\.png|icon-512\.png|og-fallback\.png)$/.test(f)){res.writeHead(200,{'content-type':f.endsWith('.ico')?'image/x-icon':'image/png','cache-control':'max-age=86400'});return fs.createReadStream(__dirname+f).pipe(res);}
   if(f==='/favicon.ico'){res.writeHead(200,{'content-type':'image/x-icon'});return fs.createReadStream(__dirname+'/icons/favicon.ico').pipe(res);}
-  const allowed=['/index.html','/style.css','/sim.js','/organism.js','/card.js','/app.js','/audio.js','/onboarding.js','/how.html','/audio/ambient.mp3','/node_modules/@solana/web3.js/lib/index.iife.min.js'];
+  const allowed=['/index.html','/style.css','/sim.js','/pvp.js','/organism.js','/card.js','/app.js','/audio.js','/onboarding.js','/how.html','/audio/ambient.mp3','/node_modules/@solana/web3.js/lib/index.iife.min.js'];
   if(!allowed.includes(f)){res.writeHead(404);return res.end('not found');}
   if(f==='/index.html'){res.writeHead(200,{'content-type':MIME['.html'],'cache-control':'no-cache'});return res.end(indexHtml());}
   res.writeHead(200,{'content-type':MIME[path.extname(f)]||'application/octet-stream','cache-control':u.query.v?'public, max-age=31536000, immutable':'no-cache'});fs.createReadStream(__dirname+f).pipe(res);

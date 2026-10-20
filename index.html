@@ -16,7 +16,7 @@
 <meta name="theme-color" content="#f3eddb">
 <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="booting">
 <header class="masthead">
   <div class="mark"><img class="seal" src="/icons/icon-512.png" alt="" width="56" height="56"><div>
     <span class="title">Primordial</span>
@@ -70,19 +70,29 @@
   <section class="plate">
     <div class="viewport">
       <canvas id="tank" width="900" height="900"></canvas>
+      <div class="loading" aria-live="polite"><svg viewBox="0 0 60 60" width="54" height="54" aria-hidden="true"><circle cx="30" cy="30" r="26" fill="none" stroke="currentColor" stroke-width="1.2"/><path class="spin" d="M30 4a26 26 0 0 1 26 26" fill="none" stroke="#c9531a" stroke-width="2.2" stroke-linecap="round"/></svg><span>Joining the live tank</span></div>
       <div class="zoom"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">-</button><button id="zreset">1:1</button></div>
     </div>
-    <p class="caption"><span class="fig">Fig. 1</span> The tank at epoch <span id="tick2">0</span>. Scroll to magnify, drag to move. Click an organism to examine it, or click open water to set a mark for your intervention. <span id="sync" class="sync">Joining the live tank, this takes a few seconds.</span></p>
+    <p class="caption"><span class="fig">Fig. 1</span> The tank at tick <span id="tick2">0</span>. Scroll to zoom, drag to move, click a creature to examine it, or click open water to mark where an intervention lands. <span id="sync" class="sync">Joining the live tank</span></p>
     <p id="camnote" class="camnote" hidden></p>
 
     <section class="block below">
-      <h2>Hall of Survivors</h2>
+      <h2>Leaderboard</h2>
       <p class="hint">Every hour the pool pays every released lineage that is alive, more for the longer its creatures live. Once a day, the three lineages that lived longest that day also share a small bonus, 50, 30 and 20 percent. Lineages younger than two hours cannot take the bonus.</p>
       <div class="hall"><div><h3>Standing now</h3><ol id="standing" class="rank"></ol></div><div><h3>Past seasons</h3><ol id="seasons" class="rank"></ol></div></div>
     </section>
   </section>
 
   <aside class="notes">
+    <section class="block">
+      <h2>Battle feed</h2>
+      <ul class="rules">
+        <li><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 18V3m0 1h10l-3 3.5 3 3.5H5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg><span><b>Territory.</b> The lineage with the most living mass in a zone holds it and flies its banner.</span></li>
+        <li><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 15c3-1 5-4 6-8 1 4 4 7 8 8M9 7V3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg><span><b>Hunting.</b> Lineages that evolve Predation eat smaller rivals.</span></li>
+        <li><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 17h12M6 17V9m4 8V5m4 12v-6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg><span><b>Leaderboard.</b> Lineages are ranked live, with the zones they hold and the rivals they have hunted.</span></li>
+      </ul>
+      <ol id="feed" class="feed"><li class="muted">Waiting for the first report.</li></ol>
+    </section>
     <section class="block">
       <h2>My lineages</h2>
       <p class="hint">Species you released and species you follow. Locate flies to the largest living cluster, Track keeps one organism in view. Press F to cycle, Esc to release the camera.</p>
@@ -95,12 +105,11 @@
       <h2>Intervene</h2>
       <p class="hint">Interventions land at your mark, or at a random place if none is set. Each one enters the public log and is replayed identically in every browser. <span id="markinfo"></span></p>
       <div class="actions">
-        <button data-ev="food" title="Drop food at your mark. Any species nearby can eat it. Costs 0.01 SOL."><span>Food bloom</span><em>0.01 SOL</em></button>
-        <button data-ev="foodburn" title="Same food drop, paid by burning 50 SOUP instead of SOL."><span>Food bloom</span><em>burn 50</em></button>
-        <button data-ev="meteor" title="A meteor hits your mark and wipes out most creatures in a wide circle. Costs 0.05 SOL."><span>Meteor strike</span><em>0.05 SOL</em></button>
-        <button data-ev="cold" title="The whole dish gets cold for about 25 seconds. Creatures burn energy faster and food grows slower. Costs 0.03 SOL."><span>Cold front</span><em>0.03 SOL</em></button>
-        <button data-ev="toxic" title="A poisonous patch opens at your mark for about 40 seconds. Costs 0.03 SOL."><span>Toxic bloom</span><em>0.03 SOL</em></button>
-        <button data-ev="none" disabled><span class="muted">Drought</span><em>soon</em></button>
+        <button data-ev="food" title="Drop food at your mark. Any species nearby can eat it. Costs 0.01 SOL."><span><svg class="ic" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 17V8m0 0c-3 0-5-2-5-5 3 0 5 2 5 5zm0 3c3 0 5-2 5-5-3 0-5 2-5 5z"/></svg>Food bloom</span><em>0.01 SOL</em></button>
+        <button data-ev="foodburn" title="Same food drop, paid by burning 50 SOUP instead of SOL."><span><svg class="ic" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 17c-3.5 0-5-2.5-5-5 0-3 3-4 3-8 2 1.5 3 3 3 5 1-1 1.5-2 1.5-3 2 1.5 2.5 3.5 2.5 6 0 2.5-1.5 5-5 5z"/></svg>Food bloom</span><em>burn 50</em></button>
+        <button data-ev="meteor" title="A meteor hits your mark and wipes out most creatures in a wide circle. Costs 0.05 SOL."><span><svg class="ic" viewBox="0 0 20 20" aria-hidden="true"><circle cx="12.5" cy="12.5" r="4"/><path d="M9.5 9.5L3 3m6 3L5 2m4 9L2 7"/></svg>Meteor strike</span><em>0.05 SOL</em></button>
+        <button data-ev="cold" title="The whole dish gets cold for about 25 seconds. Creatures burn energy faster and food grows slower. Costs 0.03 SOL."><span><svg class="ic" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2v16M3 6l14 8M3 14l14-8M8 3.5l2 2 2-2M8 16.5l2-2 2 2"/></svg>Cold front</span><em>0.03 SOL</em></button>
+        <button data-ev="toxic" title="A poisonous patch opens at your mark for about 40 seconds. Costs 0.03 SOL."><span><svg class="ic" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3c3 4 5 6.5 5 9a5 5 0 0 1-10 0c0-2.5 2-5 5-9z"/><path d="M8 12.5a2 2 0 0 0 2 2"/></svg>Toxic bloom</span><em>0.03 SOL</em></button>
       </div>
       <form id="release" class="release">
         <label for="spname">Release a named species. The whole price is burned. Your lineage earns from the pool every hour it stays alive.</label>
@@ -148,6 +157,7 @@
 </footer>
 <script src="/vendor/web3.js"></script>
 <script src="sim.js"></script>
+<script src="pvp.js"></script>
 <script src="organism.js"></script>
 <script src="card.js"></script>
 <script src="app.js"></script>

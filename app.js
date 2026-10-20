@@ -40,7 +40,7 @@ const perf=window.__perf={step:0,steps:0,draw:0,draws:0,joinMs:0,frames:0};const
 function stepOne(){const evs=evAt.get(W.tick)||[];const t=performance.now();W.step(evs);perf.step+=performance.now()-t;perf.steps++;evAt.delete(W.tick-1);
   if(srvHash.has(W.tick))checkHash(W.tick);}
 function checkHash(t){if(W.tick!==t||!srvHash.has(t))return;{const h=srvHash.get(t);srvHash.delete(t);const mine=W.hash();hashOk=mine===h;window.__hashes=(window.__hashes||[]).concat([[W.tick,mine,h]]);
-  setSync(hashOk?`In agreement with the canonical tank. Hash ${mine} at epoch ${W.tick}.`:'Diverged. Resyncing.',hashOk);if(!hashOk)resync();}}
+  setSync(hashOk?`Live. Your view matches the server, check ${mine} at tick ${W.tick}.`:'Out of step, reloading the tank.',hashOk);if(!hashOk)resync();}}
 function setSync(t,ok){const e=$('sync');e.textContent=t;e.className='sync'+(ok?'':' bad');}
 
 // ---------- layers: static plate (redrawn only on zoom/pan) and a food layer refreshed every 8 ticks
@@ -106,13 +106,16 @@ function drawTank(){
   const z=view.z*(tank.clientWidth/900||1);
   // thermal vents: concentric fine rings
   for(const v of W.vents){c.strokeStyle='rgba(201,83,26,.18)';c.lineWidth=.5/view.z;for(let r=10;r<=50;r+=10){c.beginPath();c.arc(v[0],v[1],r,0,7);c.stroke();}
-    c.fillStyle='rgba(91,85,74,.55)';c.font=`italic ${11/view.z}px ${SERIF}`;c.textAlign='center';c.fillText('thermal vent',v[0],v[1]+62);}
-  if(W.cold>0){c.fillStyle=`rgba(78,96,108,${Math.min(.14,W.cold/2500)})`;c.fillRect(0,0,900,900);}
+    }
+  drawZones(c);
+  if(W.cold>0){const a=Math.min(1,W.cold/120,(700-W.cold)/40+.2);c.fillStyle=`rgba(78,96,108,${.1*a})`;c.fillRect(0,0,900,900);c.globalAlpha=a;c.drawImage(frost,0,0,900,900);c.globalAlpha=1;}
   for(const t of W.toxic){c.strokeStyle='rgba(201,83,26,.32)';c.lineWidth=.6/view.z;c.save();c.beginPath();c.arc(t.x,t.y,t.r,0,7);c.clip();
     for(let x=-t.r;x<t.r;x+=7){c.beginPath();c.moveTo(t.x+x,t.y-t.r);c.lineTo(t.x+x+t.r,t.y+t.r);c.stroke();}c.restore();
     c.setLineDash([3,3]);c.strokeStyle=RUST;c.beginPath();c.arc(t.x,t.y,t.r,0,7);c.stroke();c.setLineDash([]);
     c.fillStyle=RUST;c.font=`italic ${12/view.z}px ${SERIF}`;c.textAlign='center';c.fillText('toxic bloom',t.x,t.y-t.r-6/view.z);}
   for(const k of W.craters){const age=W.tick-k.t;if(age>2400)continue;const a=1-age/2400;
+    if(age<120){const q=age/120,e=1-(1-q)*(1-q);c.strokeStyle=`rgba(17,19,20,${.7*(1-q)})`;for(let i=0;i<3;i++){c.lineWidth=(2.2-i*.6)/view.z;c.beginPath();c.arc(k.x,k.y,k.r*(e*(1-i*.18)),0,7);c.stroke();}
+      c.fillStyle=`rgba(201,83,26,${.22*(1-q)})`;c.beginPath();c.arc(k.x,k.y,k.r*e*.55,0,7);c.fill();}
     c.strokeStyle=`rgba(17,19,20,${.5*a})`;c.lineWidth=.7/view.z;c.setLineDash([1,3]);c.beginPath();c.arc(k.x,k.y,k.r,0,7);c.stroke();c.setLineDash([]);
     c.fillStyle=`rgba(17,19,20,${.55*a})`;c.font=`italic ${12/view.z}px ${SERIF}`;c.textAlign='center';c.fillText('impact, epoch '+k.t,k.x,k.y-k.r-6/view.z);}
   const vis=(x,y,m)=>{const sx=x*view.z+view.ox,sy=y*view.z+view.oy;return sx>-m&&sx<900+m&&sy>-m&&sy<900+m;};
@@ -143,6 +146,36 @@ function drawTank(){
     c.fillStyle=INK;c.font=`italic ${13*s}px ${SERIF}`;c.textAlign='left';c.fillText(spName(S[sel.sp]),sel.x+44*s,sel.y-45*s);}
   c.restore();
 }
+// ---------- frost texture (drawn once): hand-cut ice crystals creeping in from the rim
+const frost=document.createElement('canvas');frost.width=900;frost.height=900;
+(function(){const c=frost.getContext('2d'),{CX,CY,R}=P;let s=7;const rnd=()=>(s=(s*16807)%2147483647)/2147483647;c.strokeStyle='rgba(58,78,92,.55)';c.lineCap='round';
+  for(let i=0;i<150;i++){const a=rnd()*6.283,d=R-rnd()*rnd()*120,x=CX+Math.cos(a)*d,y=CY+Math.sin(a)*d,l=3+rnd()*9;c.lineWidth=.5+rnd()*.6;
+    for(let j=0;j<3;j++){const b=a+j*1.047+rnd()*.2;c.beginPath();c.moveTo(x-Math.cos(b)*l,y-Math.sin(b)*l);c.lineTo(x+Math.cos(b)*l,y+Math.sin(b)*l);c.stroke();}}})();
+// ---------- territory: zone outlines, holder banners, ink spread on capture
+const capture=new Map();
+function holderName(h){return h<0?'unclaimed':spName(W.species[h]);}
+function drawZones(c){if(!W.pvp)return;const s=(view.z<2?1.6:1)/view.z,now=performance.now();
+  for(const z of W.pvp.zones){const prev=capture.get(z.name);if(!prev)capture.set(z.name,{h:z.h,at:0});else if(prev.h!==z.h){prev.h=z.h;prev.at=now;}
+    const cp=capture.get(z.name),q=cp.at?Math.min(1,(now-cp.at)/1400):1,col=z.h>=0?W.species[z.h].col:[91,85,74],mine=z.h>=0&&W.species[z.h].released;
+    if(q<1){const e=1-Math.pow(1-q,3);c.fillStyle=`rgba(${col},${.28*(1-q)})`;c.beginPath();for(let i=0;i<=24;i++){const a=i/24*6.283,w=1+.07*Math.sin(i*2.7+z.x);c.lineTo(z.x+Math.cos(a)*z.r*e*w,z.y+Math.sin(a)*z.r*e*w);}c.fill();}
+    c.strokeStyle=mine?'rgba(201,83,26,.7)':'rgba(17,19,20,.32)';c.lineWidth=(mine?1:.7)*s;c.setLineDash([4*s,4*s]);c.beginPath();c.arc(z.x,z.y,z.r,0,7);c.stroke();c.setLineDash([]);
+    const bx=z.x-6*s,by=z.y-z.r*.42+11*s;c.strokeStyle=INK;c.lineWidth=.9*s;c.beginPath();c.moveTo(bx,by);c.lineTo(bx,by-22*s);c.stroke();
+    c.fillStyle=z.h>=0?`rgb(${col})`:PAPER;c.beginPath();c.moveTo(bx,by-22*s);c.lineTo(bx+16*s,by-18.5*s);c.lineTo(bx+11*s,by-15*s);c.lineTo(bx+16*s,by-11.5*s);c.lineTo(bx,by-11*s);c.closePath();c.fill();c.stroke();
+    c.font=`italic ${10.5*s}px ${SERIF}`;const tw=Math.max(c.measureText(z.h>=0?holderName(z.h):'unclaimed').width,z.name.length*5.6*s)+10*s;c.fillStyle='rgba(243,237,219,.78)';c.fillRect(z.x-tw/2,by+3*s,tw,25*s);
+    c.textAlign='center';c.textBaseline='alphabetic';c.fillStyle=INK;c.font=`${8.5*s}px ${MONO}`;c.fillText(z.name.toUpperCase(),z.x,by+12*s);
+    c.fillStyle=mine?RUST:INK2;c.font=`italic ${10.5*s}px ${SERIF}`;c.fillText(z.h>=0?holderName(z.h):'unclaimed',z.x,by+24*s);}}
+// ---------- battle feed
+function feedText(e){const n=id=>`<i>${esc(holderName(id))}</i>`;
+  if(e.k==='zone')return `${n(e.a)} took the ${e.z}${e.b>=0?' from '+n(e.b):''}.`;
+  if(e.k==='lost')return `${n(e.a)} lost the ${e.z}. It is unclaimed.`;
+  if(e.k==='hunt')return `${n(e.a)} hunted ${e.n} of ${n(e.b)}.`;
+  if(e.k==='season')return `Season ${e.n} began. Hunting tallies reset.`;return '';}
+const esc=t=>String(t).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+let feedKey='';function drawFeed(){const ol=$('feed');if(!ol||!W)return;const f=W.pvp?W.pvp.feed:[],key=f.length+':'+(f.length?f[f.length-1].t:0);if(key===feedKey)return;
+  const fresh=feedKey!=='';feedKey=key;ol.innerHTML='';
+  for(const e of f.slice(-12).reverse()){const li=document.createElement('li');li.className='fe '+e.k;li.innerHTML=`<b>${String(e.t).padStart(6,'0')}</b><span>${feedText(e)}</span>`;ol.append(li);}
+  if(fresh&&ol.firstChild)ol.firstChild.classList.add('new');
+  if(!f.length)ol.innerHTML=`<li class="muted">${W.pvp?'Quiet so far. Zone captures and hunts appear here as they happen.':'Territory opens at tick '+(W.cfg.pvpFrom||0)+'.'}</li>`;}
 // ---------- lineages: follow list, locate, track camera, highlights, off-screen ticks, search
 const FKEY='primordial.follows';let follows=new Set(JSON.parse(localStorage.getItem(FKEY)||'[]'));let selLine=null;const hist=new Map();
 const cam={goal:null,track:null,trackLine:null};
@@ -158,7 +191,7 @@ function camStep(){
   if(cam.track){let k=W.c.includes(cam.track)?cam.track:null;
     if(!k){const ms=members(cam.trackLine);if(!ms.length){stopTrack('The tracked lineage has died out.');}else{const p=cam.last||ms[0];ms.sort((a,b)=>((a.x-p.x)**2+(a.y-p.y)**2)-((b.x-p.x)**2+(b.y-p.y)**2));cam.track=k=ms[0];sel=k;notice(`Tracked organism died. Now following no. ${k.id}.`);}}
     if(k){cam.last={x:k.x,y:k.y};cam.goal={x:k.x,y:k.y,z:Math.max(view.z,(cam.goal&&cam.goal.z)||4)};}}
-  const g=cam.goal;if(!g)return;const cx=(450-view.ox)/view.z,cy=(450-view.oy)/view.z,f=cam.track?.25:.12;
+  const g=cam.goal;if(!g)return;const cx=(450-view.ox)/view.z,cy=(450-view.oy)/view.z,f=cam.track?.18:.09;
   const nz=view.z+(g.z-view.z)*f,nx=cx+(g.x-cx)*f,ny=cy+(g.y-cy)*f;view.z=nz;view.ox=450-nx*nz;view.oy=450-ny*nz;
   if(!cam.track&&Math.abs(g.z-nz)<.01&&Math.abs(g.x-nx)<.3&&Math.abs(g.y-ny)<.3)cam.goal=null;}
 function locate(id,select){const S=W.species[id];if(!S){notice('No species with that number.');return;}const root=lineOf(id),ms=members(root);selLine=root;
@@ -243,7 +276,7 @@ function drawTree(){const c=trc,w=560,h=240;c.setTransform(DPR,0,0,DPR,0,0);c.cl
     if(sel&&W.species[sel.sp].id===s.id){c.fillStyle=INK;c.beginPath();c.arc(x(end),y,2.5,0,7);c.fill();}
     if(alive||s.released){c.fillStyle=s.released?RUST:INK;c.font=`italic 10.5px ${SERIF}`;c.textAlign='left';c.textBaseline='middle';c.fillText(spName(s)+'  '+s.count,x(end)+6,y);}}}
 // ---------- specimen + skill tree
-function drawSpecimen(){const el=$('specimen');if(!sel||!W.c.includes(sel)){if(sel){el.className='specimen empty';el.textContent='The selected organism has died.';sel=null;$('cardrow').hidden=true;}return;}
+function drawSpecimen(){const el=$('specimen');brain.style.display=sel&&W.c.includes(sel)?'block':'none';if(!sel||!W.c.includes(sel)){if(sel){el.className='specimen empty';el.textContent='The selected organism has died.';sel=null;$('cardrow').hidden=true;}return;}
   const s=W.species[sel.sp],root=W.species[s.root];el.className='specimen';$('cardrow').hidden=false;
   el.innerHTML=`<div class="name"></div><div class="meta"><span>No. ${sel.id}</span><span>Generation ${sel.gen}</span><span>Age ${sel.age}</span><span>Energy ${sel.e.toFixed(2)} <span class="ebar"></span></span><span>Lineage ${root.released?'released by '+short(root.owner):'wild'}</span><span>Kin alive ${s.count}</span></div>`;
   el.querySelector('.name').textContent=spName(s);
@@ -261,7 +294,7 @@ function drawSkill(){const el=$('skilltree');const s=sel&&W.c.includes(sel)?W.sp
 // ---------- ledger panels
 async function loadLedger(){try{ledger=await (await fetch('/api/ledger')).json();}catch(e){return;}
   $('burn').textContent=Math.round(ledger.tokensBurned).toLocaleString('en-US');$('pool').textContent=(ledger.pool/1e9).toFixed(3)+' SOL';
-  const st=$('standing');st.innerHTML='';(ledger.scores||[]).slice(0,5).forEach((w,i)=>{const li=document.createElement('li');li.innerHTML=`<span class="pl">${i+1}</span><span class="nm"></span><span class="sc">${w.score}</span><span class="sub">${w.alive} alive, ${w.ticks} ticks, ${short(w.owner)}</span>`;li.querySelector('.nm').textContent=w.name;st.append(li);});
+  const st=$('standing');st.innerHTML='';(ledger.scores||[]).slice(0,5).forEach((w,i)=>{const li=document.createElement('li');li.innerHTML=`<span class="pl">${i+1}</span><span class="nm"></span><span class="sc">${w.score}</span><span class="sub">${w.alive} alive, ${w.zones||0} zone${w.zones===1?'':'s'}, ${w.kills||0} hunted, ${short(w.owner)}</span>`;li.querySelector('.nm').textContent=w.name;st.append(li);});
   if(!st.children.length)st.innerHTML='<li><span></span><span class="muted">No released lineage alive.</span></li>';
   const se=$('seasons');se.innerHTML='';ledger.payouts.slice().reverse().slice(0,4).forEach(p=>{for(const t of (p.txs.length?p.txs:p.winners.map(w=>({place:w.place,name:w.name,owner:w.owner})))){const li=document.createElement('li');
     li.innerHTML=`<span class="pl">${t.place}</span><span class="nm"></span><span class="sc">${t.lamports?(t.lamports/1e9).toFixed(4)+' SOL':''}</span><span class="sub">Season ${p.epoch}, ${short(t.owner)} ${t.sig?`<a href="${explorer(t.sig)}" target="_blank">payout tx</a>`:''} <a href="${share('Hall of Survivors, season '+p.epoch+'. '+t.name+' placed '+t.place+'.', '/h/'+p.epoch)}" target="_blank">Share on X</a></span>`;li.querySelector('.nm').textContent=t.name;se.append(li);}});
@@ -328,9 +361,10 @@ function loop(now){catchUp();requestAnimationFrame(loop);
   const vk=view.z+','+view.ox+','+view.oy+','+(sel?sel.id:0)+','+(selLine==null?'':selLine)+','+follows.size+','+(mark?mark.join():'');
   if(now-lastDraw<31||(W.tick===lastTickDrawn&&vk===viewKey))return;
   lastDraw=now;lastTickDrawn=W.tick;viewKey=vk;frame++;
+  if(frame===1)document.body.classList.remove('booting');
   {const t=performance.now();drawTank();perf.draw+=performance.now()-t;perf.draws++;perf.frames++;}
   if(now-lastBrain>250){lastBrain=now;drawBrain();}
-  if(now-lastDom>500){lastDom=now;drawSpecimen();$('tick').textContent=W.tick;$('tick2').textContent=W.tick;$('pop').textContent=W.c.length;let n=0;for(const s of W.species)if(s.count)n++;$('nsp').textContent=n;}
+  if(now-lastDom>500){lastDom=now;drawFeed();drawSpecimen();$('tick').textContent=W.tick;$('tick2').textContent=W.tick;$('pop').textContent=W.c.length;let n=0;for(const s of W.species)if(s.count)n++;$('nsp').textContent=n;}
   if(now-lastSlow>1500){lastSlow=now;drawTree();drawSkill();drawLines();}
 }
 boot();
