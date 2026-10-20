@@ -79,3 +79,6 @@ button:disabled{cursor:default;opacity:.6}button:disabled:hover{background:trans
 .mark{display:flex;align-items:center;gap:16px}.mark .seal{width:56px;height:56px;border-radius:50%;border:1px solid var(--ink);flex:none}
 .mark .title{display:block}
 .viewport canvas.bg{position:absolute;left:0;top:0;pointer-events:none}.viewport #tank{position:relative;background:transparent}
+.wrow{display:flex;gap:10px;align-items:center}
+.sound{border:1px solid var(--ink);border-radius:50%;width:36px;height:36px;padding:0;justify-content:center;align-items:center;color:var(--ink)}
+.sound:hover{color:var(--rust)}.sound .mute{display:none}.sound[aria-pressed="false"] .waves{display:none}.sound[aria-pressed="false"] .mute{display:inline}.sound[aria-pressed="false"]{color:var(--ink2)}
