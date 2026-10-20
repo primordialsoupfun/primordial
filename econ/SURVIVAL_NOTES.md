@@ -21,3 +21,4 @@ base med 5 p90 7 | clone med 2 | fade 3h med 68 p10 58 p90 83 (tight) | fade 6h 
 ## Shipped rule checks
 - econ/replay_v4.js: checkpoint restore mid-run across v4 switch, 10/10 hashes match.
 - econ_v4.py medium game (100k vol, 200 interventions/day): before avg 1.17x med 0.63x p90 3.02x profitable 31%; v4 avg 1.21x med 0.99x p90 2.00x profitable 50%. Sample 14 lineages (small).
+- Deployed 48cd3ae to Render; live v4From=549300. Live e2e-sync (two clients + server) at ticks 551000/551500: all hashes match.
