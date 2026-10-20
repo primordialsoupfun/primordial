@@ -39,6 +39,7 @@
       <div class="zoom"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">-</button><button id="zreset">1:1</button></div>
     </div>
     <p class="caption"><span class="fig">Fig. 1</span> The tank at epoch <span id="tick2">0</span>. Scroll to magnify, drag to move. Click an organism to examine it, or click open water to set a mark for your intervention. <span id="sync" class="sync">Connecting</span></p>
+    <p id="camnote" class="camnote" hidden></p>
 
     <section class="block below">
       <h2>Hall of Survivors</h2>
@@ -48,6 +49,14 @@
   </section>
 
   <aside class="notes">
+    <section class="block">
+      <h2>My lineages</h2>
+      <p class="hint">Species you released and species you follow. Locate flies to the largest living cluster, Track keeps one organism in view. Press F to cycle, Esc to release the camera.</p>
+      <ol id="mylines" class="lines"></ol>
+      <div class="search"><input id="lsearch" placeholder="Find a species by name or number" autocomplete="off"></div>
+      <ol id="lresults" class="lines"></ol>
+    </section>
+
     <section class="block">
       <h2>Intervene</h2>
       <p class="hint">Interventions land at your mark, or at a random place if none is set. Each one enters the public log and is replayed identically in every browser. <span id="markinfo"></span></p>
@@ -70,7 +79,7 @@
       <h2>Specimen</h2>
       <div id="specimen" class="specimen empty">No organism selected. Click one in the tank.</div>
       <canvas id="brain" width="560" height="280"></canvas>
-      <div class="cardrow" id="cardrow" hidden><button id="sharesp" class="ghost"><span>Share on X</span></button><button id="cardpng" class="ghost"><span>Specimen card</span></button></div>
+      <div class="cardrow" id="cardrow" hidden><button id="starsp" class="ghost"><span>Follow lineage</span></button><button id="sharesp" class="ghost"><span>Share on X</span></button><button id="cardpng" class="ghost"><span>Specimen card</span></button></div>
     </section>
 
     <section class="block">

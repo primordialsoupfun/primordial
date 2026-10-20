@@ -32,6 +32,7 @@ async function boot(){
   es.addEventListener('chain',()=>loadLedger());
   loadLedger();setInterval(loadLedger,10000);
   requestAnimationFrame(loop);
+  const dl=qs.get('species');if(dl!=null)setTimeout(()=>locate(+dl,true),300);
 }
 async function resync(){const s=await (await fetch('/api/snapshot')).json();W=P.World.fromJSON(s.state);evAt=new Map();for(const e of s.events)addEv(e);target=s.serverTick;
   while(W.tick<target)stepOne();window.__world=W;perf.joinMs=performance.now()-T0;perf.joinTicks=target-s.tick;}
@@ -55,7 +56,7 @@ const GL=(function(){const cv=document.createElement('canvas');cv.width=tank.wid
     if(vk<0.5){float d=length(q);if(d>1.0)discard;gl_FragColor=vec4(vc.rgb,vc.a*(1.0-smoothstep(.6,1.0,d)))*1.0;gl_FragColor.rgb*=gl_FragColor.a;return;}
     float cs=cos(va),sn=sin(va);vec2 r=vec2(q.x*cs+q.y*sn,-q.x*sn+q.y*cs);vec2 e=r/vec2(0.95,0.58);float d=length(e);if(d>1.0)discard;
     vec3 ink=vc.rgb*0.42;float rim=smoothstep(.62,.92,d);float nuc=1.0-smoothstep(.16,.26,length(r-vec2(.12,0.0)));
-    vec3 col=mix(mix(vc.rgb*1.08,vc.rgb,d),ink,rim*.85);col=mix(col,ink,nuc*.7);col=mix(col,vec3(.95,.93,.86),.22*(1.0-rim));float al=.85*(1.0-smoothstep(.92,1.0,d));gl_FragColor=vec4(col*al,al);}`;
+    vec3 col=mix(mix(vc.rgb*1.08,vc.rgb,d),ink,rim*.85);col=mix(col,ink,nuc*.7);col=mix(col,vec3(.95,.93,.86),.22*(1.0-rim));float al=.85*(1.0-smoothstep(.92,1.0,d))*(vc.a<0.95?0.35:1.0);gl_FragColor=vec4(col*al,al);}`;
   const sh=(t,src)=>{const o=gl.createShader(t);gl.shaderSource(o,src);gl.compileShader(o);return o;};
   const pr=gl.createProgram();gl.attachShader(pr,sh(gl.VERTEX_SHADER,vs));gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,fs));gl.linkProgram(pr);if(!gl.getProgramParameter(pr,gl.LINK_STATUS)){cv.remove();return null;}
   gl.useProgram(pr);const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);const ST=8*4;
@@ -64,7 +65,7 @@ const GL=(function(){const cv=document.createElement('canvas');cv.width=tank.wid
   gl.enable(gl.BLEND);gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);let data=new Float32Array(8*3000);let shown=false;
   function draw(W,view){const n=W.food.length+W.c.length;if(data.length<n*8)data=new Float32Array(n*8*1.5|0);let j=0;const k=DPR,Z=view.z;
     for(const f of W.food){data[j++]=(f.x*Z+view.ox)*k;data[j++]=(f.y*Z+view.oy)*k;data[j++]=2.6*k*Math.sqrt(Z);data[j++]=96/255;data[j++]=112/255;data[j++]=62/255;data[j++]=.55;data[j++]=-1;}
-    const S=W.species;for(const o of W.c){const col=S[o.sp].col,sz=(2.4+Math.min(1.6,o.e*.8))*2.5*Z*k;data[j++]=(o.x*Z+view.ox)*k;data[j++]=(o.y*Z+view.oy)*k;data[j++]=sz;data[j++]=col[0]/255;data[j++]=col[1]/255;data[j++]=col[2]/255;data[j++]=1;data[j++]=Math.atan2(o.dy,o.dx);}
+    const S=W.species;for(const o of W.c){const col=S[o.sp].col,sz=(2.4+Math.min(1.6,o.e*.8))*2.5*Z*k;data[j++]=(o.x*Z+view.ox)*k;data[j++]=(o.y*Z+view.oy)*k;data[j++]=sz;data[j++]=col[0]/255;data[j++]=col[1]/255;data[j++]=col[2]/255;data[j++]=dimOf(o);data[j++]=Math.atan2(o.dy,o.dx);}
     gl.viewport(0,0,cv.width,cv.height);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);gl.uniform2f(ures,cv.width,cv.height);
     gl.bufferData(gl.ARRAY_BUFFER,data.subarray(0,j),gl.DYNAMIC_DRAW);gl.drawArrays(gl.POINTS,0,j/8);shown=true;cv.style.visibility='visible';}
   function hide(){if(shown){gl.clear(gl.COLOR_BUFFER_BIT);cv.style.visibility='hidden';shown=false;}}
@@ -127,13 +128,14 @@ function drawTank(){
     let tr=trails.get(k.id);if(!tr){tr=[];trails.set(k.id,tr);}if((W.tick&3)===0){tr.push(k.x,k.y);if(tr.length>18)tr.splice(0,2);}
     if(tr.length>=4){c.moveTo(tr[0],tr[1]);for(let i=2;i<tr.length;i+=2)c.lineTo(tr[i],tr[i+1]);c.lineTo(k.x,k.y);}
     const size=2.4+Math.round(Math.min(1.6,k.e*.8)/.8)*.8,ph=((W.tick>>3)+k.id)&1,ang=(Math.round(Math.atan2(k.dy,k.dx)/(Math.PI/8))+16)&15,spr=sprite(sp,S[sp.root],size,L,ph,ang);
-    ops.push(spr,(k.x*view.z+view.ox)*DPR,(k.y*view.z+view.oy)*DPR,0);}
+    ops.push(spr,(k.x*view.z+view.ox)*DPR,(k.y*view.z+view.oy)*DPR,dimOf(k)<0.95?0.35:1);}
   if(DETAIL){c.strokeStyle='rgba(90,80,64,.16)';c.lineWidth=.6/view.z;c.stroke();}
   c.save();c.setTransform(1,0,0,1,0,0);
   for(let i=0;i<ops.length;i+=4){const o=ops[i];if(!o){const col=ops[i+3];c.fillStyle=`rgb(${col[0]},${col[1]},${col[2]})`;c.fillRect((ops[i+1]*view.z+view.ox)*DPR-2,(ops[i+2]*view.z+view.oy)*DPR-1.5,4,3);continue;}
-    const w=o.cv.width*sc,h=o.cv.height*sc;c.drawImage(o.cv,ops[i+1]-w/2,ops[i+2]-h/2,w,h);}
+    const w=o.cv.width*sc,h=o.cv.height*sc;c.globalAlpha=ops[i+3]||1;c.drawImage(o.cv,ops[i+1]-w/2,ops[i+2]-h/2,w,h);}c.globalAlpha=1;
   c.restore();}
   if(W.tick%200===0){const alive=new Set(W.c.map(k=>k.id));for(const id of trails.keys())if(!alive.has(id))trails.delete(id);}
+  drawHighlights(c);
   if(mark){c.strokeStyle=RUST;c.lineWidth=.8/view.z;const m=8/view.z;c.beginPath();c.moveTo(mark[0]-m,mark[1]);c.lineTo(mark[0]+m,mark[1]);c.moveTo(mark[0],mark[1]-m);c.lineTo(mark[0],mark[1]+m);c.stroke();
     c.beginPath();c.arc(mark[0],mark[1],m*1.6,0,7);c.stroke();c.fillStyle=RUST;c.font=`italic ${12/view.z}px ${SERIF}`;c.textAlign='left';c.fillText('your mark',mark[0]+m*2,mark[1]+4/view.z);}
   if(sel&&W.c.includes(sel)){const s=1/view.z;c.strokeStyle=INK;c.lineWidth=.8*s;c.beginPath();c.arc(sel.x,sel.y,16*s,0,7);c.stroke();
@@ -141,14 +143,70 @@ function drawTank(){
     c.fillStyle=INK;c.font=`italic ${13*s}px ${SERIF}`;c.textAlign='left';c.fillText(spName(S[sel.sp]),sel.x+44*s,sel.y-45*s);}
   c.restore();
 }
+// ---------- lineages: follow list, locate, track camera, highlights, off-screen ticks, search
+const FKEY='primordial.follows';let follows=new Set(JSON.parse(localStorage.getItem(FKEY)||'[]'));let selLine=null;const hist=new Map();
+const cam={goal:null,track:null,trackLine:null};
+// Lineage key: a released species groups all its descendants; a wild species stands alone.
+const lineOf=id=>{const s=W.species[id];return W.species[s.root].released?s.root:s.id;};const rootOf=k=>lineOf(k.sp);
+function myLines(){const out=new Set();if(wallet)for(const s of W.species)if(s.released&&s.root===s.id&&s.owner===wallet)out.add(s.id);for(const f of follows)out.add(f);return [...out].filter(id=>W.species[id]);}
+function dimOf(k){return selLine!=null&&rootOf(k)!==selLine?0.92:1;}
+function members(root){const a=[];for(const k of W.c)if(rootOf(k)===root)a.push(k);return a;}
+function cluster(ms){if(!ms.length)return null;const B=new Map();let best=null,bn=0;for(const k of ms){const key=((k.x/60)|0)+','+((k.y/60)|0);const v=(B.get(key)||0)+1;B.set(key,v);if(v>bn){bn=v;best=key;}}
+  const[bx,by]=best.split(',').map(Number);let sx=0,sy=0,n=0;for(const k of ms)if(Math.abs(k.x/60-bx-.5)<1.5&&Math.abs(k.y/60-by-.5)<1.5){sx+=k.x;sy+=k.y;n++;}return{x:sx/n,y:sy/n,n};}
+function goTo(x,y,z){cam.goal={x,y,z:Math.max(1,Math.min(14,z))};}
+function camStep(){
+  if(cam.track){let k=W.c.includes(cam.track)?cam.track:null;
+    if(!k){const ms=members(cam.trackLine);if(!ms.length){stopTrack('The tracked lineage has died out.');}else{const p=cam.last||ms[0];ms.sort((a,b)=>((a.x-p.x)**2+(a.y-p.y)**2)-((b.x-p.x)**2+(b.y-p.y)**2));cam.track=k=ms[0];sel=k;notice(`Tracked organism died. Now following no. ${k.id}.`);}}
+    if(k){cam.last={x:k.x,y:k.y};cam.goal={x:k.x,y:k.y,z:Math.max(view.z,(cam.goal&&cam.goal.z)||4)};}}
+  const g=cam.goal;if(!g)return;const cx=(450-view.ox)/view.z,cy=(450-view.oy)/view.z,f=cam.track?.25:.12;
+  const nz=view.z+(g.z-view.z)*f,nx=cx+(g.x-cx)*f,ny=cy+(g.y-cy)*f;view.z=nz;view.ox=450-nx*nz;view.oy=450-ny*nz;
+  if(!cam.track&&Math.abs(g.z-nz)<.01&&Math.abs(g.x-nx)<.3&&Math.abs(g.y-ny)<.3)cam.goal=null;}
+function locate(id,select){const S=W.species[id];if(!S){notice('No species with that number.');return;}const root=lineOf(id),ms=members(root);selLine=root;
+  if(!ms.length){notice(`${spName(W.species[root])} has no living members.`);return;}const c=cluster(ms);goTo(c.x,c.y,c.n>12?3.4:5);
+  if(select||!sel||rootOf(sel)!==root){sel=ms.reduce((a,b)=>(a.x-c.x)**2+(a.y-c.y)**2<(b.x-c.x)**2+(b.y-c.y)**2?a:b);drawSpecimen();drawSkill();}drawLines();}
+function track(id){const root=lineOf(id),ms=members(root);if(!ms.length){notice('No living members to track.');return;}selLine=root;cam.trackLine=root;cam.track=(sel&&rootOf(sel)===root&&W.c.includes(sel))?sel:ms.reduce((a,b)=>a.age>b.age?a:b);sel=cam.track;notice(`Tracking no. ${cam.track.id}. Press Esc or drag to stop.`);drawSpecimen();drawSkill();}
+function stopTrack(msg){cam.track=null;cam.goal=null;if(msg)notice(msg);}
+function toggleFollow(id){const r=lineOf(id);follows.has(r)?follows.delete(r):follows.add(r);localStorage.setItem(FKEY,JSON.stringify([...follows]));drawLines();drawSpecimen();}
+function notice(t){const e=$('camnote');e.textContent=t;e.hidden=false;clearTimeout(notice.t);notice.t=setTimeout(()=>e.hidden=true,4000);}
+function drawHighlights(c){const lines=new Set(myLines());if(selLine!=null)lines.add(selLine);if(!lines.size)return;const s=1/view.z;
+  c.strokeStyle=RUST;c.lineWidth=.9*s;c.beginPath();let n=0;const labels=new Map();
+  for(const k of W.c){const r=rootOf(k);if(!lines.has(r))continue;const sx=k.x*view.z+view.ox,sy=k.y*view.z+view.oy;if(sx<-20||sx>920||sy<-20||sy>920)continue;
+    if(n++<400){const rr=(view.z>=3?7:5)*s;c.moveTo(k.x+rr,k.y);c.arc(k.x,k.y,rr,0,6.283);}if(!labels.has(r))labels.set(r,k);}
+  c.stroke();c.fillStyle=RUST;c.font=`italic ${11*s}px ${SERIF}`;c.textAlign='left';for(const [r,k] of labels)c.fillText(spName(W.species[r]),k.x+9*s,k.y-7*s);
+  // off-screen ticks: linocut-style double ticks on the visible rim pointing toward lineages out of view
+  c.save();c.setTransform(DPR,0,0,DPR,0,0);c.strokeStyle=RUST;c.fillStyle=RUST;c.lineWidth=1.4;c.font=`10px ${MONO}`;
+  for(const r of lines){if(labels.has(r))continue;const ms=members(r);if(!ms.length)continue;const cl=cluster(ms),tx=cl.x*view.z+view.ox,ty=cl.y*view.z+view.oy;
+    let dx=tx-450,dy=ty-450;const L=Math.hypot(dx,dy)||1;dx/=L;dy/=L;let rr=Math.min(436,P.R*view.z);let ex=450+dx*rr,ey=450+dy*rr;
+    const m=16;ex=Math.max(m,Math.min(900-m,ex));ey=Math.max(m,Math.min(900-m,ey));
+    c.beginPath();for(const o of [-4,4]){c.moveTo(ex-dy*o-dx*10,ey+dx*o-dy*10);c.lineTo(ex-dy*o,ey+dx*o);}c.moveTo(ex-dx*14,ey-dy*14);c.lineTo(ex+dx*2,ey+dy*2);c.stroke();
+    c.textAlign=dx>0?'right':'left';c.fillText(spName(W.species[r]).toUpperCase(),ex-dx*20,ey-dy*20+3);}
+  c.restore();}
+function trend(r,alive){const h=hist.get(r)||[];const now=W.tick;if(!h.length||now-h[h.length-1][0]>300){h.push([now,alive]);if(h.length>8)h.shift();hist.set(r,h);}
+  const d=alive-h[0][1];return d>2?'+'+d:d<-2?String(d):'steady';}
+const STAR='<svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><path d="M10 2.2l2.3 5 5.4.5-4.1 3.6 1.2 5.3L10 13.9l-4.8 2.7 1.2-5.3-4.1-3.6 5.4-.5z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>';
+function row(id,mineFlag){const S=W.species[id],st=lineStats(id),li=document.createElement('li');li.className='lrow'+(selLine===id?' on':'');
+  li.innerHTML=`<span class="nm"></span><span class="sc">${st.alive} alive, gen ${st.maxGen}, ${trend(id,st.alive)}${mineFlag?', yours':''}</span><span class="btns"><button class="lk">Locate</button><button class="tr">Track</button><button class="st${follows.has(id)?' on':''}" title="Follow">${STAR}</button></span>`;
+  li.querySelector('.nm').textContent=spName(S)+'  no. '+id;li.querySelector('.lk').onclick=()=>locate(id);li.querySelector('.tr').onclick=()=>track(id);li.querySelector('.st').onclick=()=>toggleFollow(id);return li;}
+function lineStats(id){let alive=0,maxGen=0;for(const k of W.c)if(rootOf(k)===id){alive++;if(k.gen>maxGen)maxGen=k.gen;}return{alive,maxGen};}
+function drawLines(){const ol=$('mylines');if(!ol||!W)return;ol.innerHTML='';const mine=new Set();if(wallet)for(const s of W.species)if(s.released&&s.root===s.id&&s.owner===wallet)mine.add(s.id);
+  const ids=myLines();for(const id of ids)ol.append(row(id,mine.has(id)));
+  if(!ids.length)ol.innerHTML='<li class="muted">Connect a wallet to see species you released, or star any specimen to follow it.</li>';
+  const q=$('lsearch').value.trim().toLowerCase(),res=$('lresults');res.innerHTML='';if(!q)return;
+  const hits=[];for(const s of W.species){if(lineOf(s.id)!==s.id)continue;const nm=spName(s).toLowerCase();if(String(s.id)===q||nm.includes(q)){if(s.count>0||(s.released&&lineStats(s.id).alive>0))hits.push(s.id);}if(hits.length>=6)break;}
+  for(const id of hits)res.append(row(id,mine.has(id)));if(!hits.length)res.innerHTML='<li class="muted">No living lineage matches.</li>';}
+$('lsearch').addEventListener('input',()=>drawLines());
+$('lsearch').addEventListener('keydown',e=>{if(e.key==='Enter'){const f=$('lresults').querySelector('.lk');if(f)f.click();}});
+window.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;if(e.key==='Escape'){stopTrack();selLine=null;}
+  if(e.key==='f'||e.key==='F'){const ids=myLines();if(!ids.length){notice('Your lineage list is empty.');return;}const i=(ids.indexOf(selLine)+1)%ids.length;locate(ids[i]);}});
+$('starsp').onclick=()=>{if(sel)toggleFollow(sel.sp);};
 // ---------- zoom / pan / pick
 const toWorld=(e)=>{const r=tank.getBoundingClientRect(),sx=(e.clientX-r.left)*900/r.width,sy=(e.clientY-r.top)*900/r.height;return[(sx-view.ox)/view.z,(sy-view.oy)/view.z,sx,sy];};
 function zoomAt(f,sx,sy){const nz=Math.max(1,Math.min(14,view.z*f));view.ox=sx-(sx-view.ox)*nz/view.z;view.oy=sy-(sy-view.oy)*nz/view.z;view.z=nz;if(nz===1){view.ox=0;view.oy=0;}}
-tank.addEventListener('wheel',e=>{e.preventDefault();const[, ,sx,sy]=toWorld(e);zoomAt(e.deltaY<0?1.18:1/1.18,sx,sy);},{passive:false});
+tank.addEventListener('wheel',e=>{e.preventDefault();cam.goal=null;const[, ,sx,sy]=toWorld(e);zoomAt(e.deltaY<0?1.18:1/1.18,sx,sy);},{passive:false});
 $('zin').onclick=()=>zoomAt(1.5,450,450);$('zout').onclick=()=>zoomAt(1/1.5,450,450);$('zreset').onclick=()=>{view.z=1;view.ox=0;view.oy=0;};
 let drag=null;
 tank.addEventListener('mousedown',e=>{drag={x:e.clientX,y:e.clientY,ox:view.ox,oy:view.oy,moved:false};});
-window.addEventListener('mousemove',e=>{if(!drag)return;const r=tank.getBoundingClientRect(),k=900/r.width,dx=(e.clientX-drag.x)*k,dy=(e.clientY-drag.y)*k;if(Math.abs(dx)+Math.abs(dy)>4)drag.moved=true;if(drag.moved&&view.z>1){view.ox=drag.ox+dx;view.oy=drag.oy+dy;}});
+window.addEventListener('mousemove',e=>{if(!drag)return;if(drag.moved&&cam.track)stopTrack('Tracking stopped.');const r=tank.getBoundingClientRect(),k=900/r.width,dx=(e.clientX-drag.x)*k,dy=(e.clientY-drag.y)*k;if(Math.abs(dx)+Math.abs(dy)>4)drag.moved=true;if(drag.moved&&view.z>1){view.ox=drag.ox+dx;view.oy=drag.oy+dy;}});
 window.addEventListener('mouseup',e=>{if(drag&&!drag.moved&&e.target===tank)pick(e);drag=null;});
 function pick(e){const[x,y]=toWorld(e);let best=null,bd=(14/view.z)**2;for(const k of W.c){const d=(k.x-x)**2+(k.y-y)**2;if(d<bd){bd=d;best=k;}}
   if(best){sel=best;drawSpecimen();drawSkill();}else{mark=[Math.round(x),Math.round(y)];$('markinfo').textContent=`Mark set at ${mark[0]}, ${mark[1]}.`;}}
@@ -184,6 +242,7 @@ function drawSpecimen(){const el=$('specimen');if(!sel||!W.c.includes(sel)){if(s
   const s=W.species[sel.sp],root=W.species[s.root];el.className='specimen';$('cardrow').hidden=false;
   el.innerHTML=`<div class="name"></div><div class="meta"><span>No. ${sel.id}</span><span>Generation ${sel.gen}</span><span>Age ${sel.age}</span><span>Energy ${sel.e.toFixed(2)} <span class="ebar"></span></span><span>Lineage ${root.released?'released by '+short(root.owner):'wild'}</span><span>Kin alive ${s.count}</span></div>`;
   el.querySelector('.name').textContent=spName(s);
+  const sb=$('starsp');if(sb)sb.firstChild.textContent=follows.has(lineOf(s.id))?'Following':'Follow lineage';
   el.querySelector('.ebar').textContent='|'.repeat(Math.max(0,Math.min(20,Math.round(sel.e*10))));}
 function drawSkill(){const el=$('skilltree');const s=sel&&W.c.includes(sel)?W.species[W.species[sel.sp].root]:null;
   if(!s||!s.released){el.className='skilltree empty';el.textContent=s?'Wild lineages evolve on their own. Only released species carry an evolution tree.':'Select an organism from a released species to see its evolution tree.';return;}
@@ -223,7 +282,7 @@ $('cardpng').onclick=()=>{if(!sel)return;const s=W.species[sel.sp],st=W.lineageS
 // ---------- wallet + payments
 const provider=()=>window.phantom&&window.phantom.solana||window.solflare||window.solana||null;
 $('connect').onclick=async()=>{const pv=provider();if(!pv){toast('No Solana wallet found. Install Phantom or Solflare and switch it to devnet.');return;}
-  const r=await pv.connect();wallet=(r&&r.publicKey||pv.publicKey).toString();$('who').textContent=short(wallet);$('connect').firstChild.textContent='Connected';drawSkill();};
+  const r=await pv.connect();setTimeout(drawLines,50);wallet=(r&&r.publicKey||pv.publicKey).toString();$('who').textContent=short(wallet);$('connect').firstChild.textContent='Connected';drawSkill();};
 function toast(html){const t=$('toast');t.hidden=false;t.innerHTML=html;}
 async function buy(memo,lamports,burnTokens){const pv=provider();if(!pv||!wallet){toast('Connect a wallet first.');return;}
   const w3=window.solanaWeb3,conn=new w3.Connection(location.origin+CFG.rpc,'confirmed'),me=new w3.PublicKey(wallet),tx=new w3.Transaction();
@@ -250,13 +309,14 @@ function loop(now){catchUp();requestAnimationFrame(loop);
   if(qs.get('sp')&&!sel){const id=+qs.get('sp');sel=W.c.find(k=>k.sp===id||W.species[k.sp].root===id)||null;if(sel){drawSpecimen();drawSkill();}}
   if(qs.get('pick')==='released'&&!sel){sel=W.c.find(k=>W.species[W.species[k.sp].root].released)||null;if(sel){drawSpecimen();drawSkill();}}
   if(qs.get('zoom')&&!loop.z&&sel){loop.z=1;view.z=+qs.get('zoom');view.ox=450-sel.x*view.z;view.oy=450-sel.y*view.z;}
-  const vk=view.z+','+view.ox+','+view.oy+','+(sel?sel.id:0)+','+(mark?mark.join():'');
+  camStep();
+  const vk=view.z+','+view.ox+','+view.oy+','+(sel?sel.id:0)+','+(selLine==null?'':selLine)+','+follows.size+','+(mark?mark.join():'');
   if(now-lastDraw<31||(W.tick===lastTickDrawn&&vk===viewKey))return;
   lastDraw=now;lastTickDrawn=W.tick;viewKey=vk;frame++;
   {const t=performance.now();drawTank();perf.draw+=performance.now()-t;perf.draws++;perf.frames++;}
   if(now-lastBrain>250){lastBrain=now;drawBrain();}
   if(now-lastDom>500){lastDom=now;drawSpecimen();$('tick').textContent=W.tick;$('tick2').textContent=W.tick;$('pop').textContent=W.c.length;let n=0;for(const s of W.species)if(s.count)n++;$('nsp').textContent=n;}
-  if(now-lastSlow>1500){lastSlow=now;drawTree();drawSkill();}
+  if(now-lastSlow>1500){lastSlow=now;drawTree();drawSkill();drawLines();}
 }
 boot();
 })();

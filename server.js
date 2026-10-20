@@ -24,6 +24,10 @@ function stepWorld(){const evs=byTick.get(W.tick)||[];const before=W.epochs.leng
   if(W.tick%COMMIT_TICKS===0&&live)commit(W.tick,W.hash());
   if(W.epochs.length>before&&live)payout(W.epochs[W.epochs.length-1]);}
 // fast-forward to wall clock position on boot (simple: replay to last known tick)
+// Fast restart: resume from the last checkpoint on disk instead of replaying from tick 0.
+const SNAP=DATA+'/snapshot.json';
+try{if(fs.existsSync(SNAP)){const sn=JSON.parse(fs.readFileSync(SNAP,'utf8'));if(sn.seed===ledger.seed&&sn.events<=ledger.events.length){W=P.World.fromJSON(sn.state);
+  console.log('resumed from checkpoint at tick',W.tick);}}}catch(e){console.error('checkpoint unreadable, replaying',e.message);W=new P.World(ledger.seed,ledger.cfg);}
 const target=ledger.lastTick||0;while(W.tick<target)stepWorld();
 snapshot={tick:W.tick,state:JSON.stringify(W)};
 
@@ -32,6 +36,8 @@ snapshot={tick:W.tick,state:JSON.stringify(W)};
 function broadcast(type,data){const s=`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`;for(const r of clients)r.write(s);}
 setInterval(()=>{stepWorld();if(W.tick%15===0){broadcast('tick',{t:W.tick});ledger.lastTick=W.tick;}},1000/HZ);
 setInterval(save,5000);
+setInterval(()=>{if(!snapshot)return;const tmp=SNAP+'.tmp';fs.writeFileSync(tmp,`{"seed":${ledger.seed},"events":${ledger.events.length},"tick":${snapshot.tick},"state":${snapshot.state}}`);fs.renameSync(tmp,SNAP);},60000);
+setTimeout(()=>{try{fs.writeFileSync(SNAP,`{"seed":${ledger.seed},"events":${ledger.events.length},"tick":${snapshot.tick},"state":${snapshot.state}}`);}catch(e){}},5000);
 function schedule(ev){ev.at=W.tick+LEAD;ev.n=ledger.events.length;ledger.events.push(ev);if(!byTick.has(ev.at))byTick.set(ev.at,[]);byTick.get(ev.at).push(ev);save();broadcast('event',ev);return ev;}
 // ---- chain
 let treasury,mintInfo,MINT;

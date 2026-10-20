@@ -82,3 +82,13 @@ button:disabled{cursor:default;opacity:.6}button:disabled:hover{background:trans
 .wrow{display:flex;gap:10px;align-items:center}
 .sound{border:1px solid var(--ink);border-radius:50%;width:36px;height:36px;padding:0;justify-content:center;align-items:center;color:var(--ink)}
 .sound:hover{color:var(--rust)}.sound .mute{display:none}.sound[aria-pressed="false"] .waves{display:none}.sound[aria-pressed="false"] .mute{display:inline}.sound[aria-pressed="false"]{color:var(--ink2)}
+.lines{list-style:none;margin:0;padding:0;font-size:13.5px}
+.lines li{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:7px 0 7px 8px;border-bottom:1px dotted var(--rule);position:relative}
+.lines li.muted{display:block;font-style:italic;padding-left:0}
+.lines li.on:before{content:"";position:absolute;left:0;top:6px;bottom:6px;width:2px;background:var(--rust)}
+.lines .nm{font-style:italic}.lines .sc{grid-column:1;font-family:var(--mono);font-size:10.5px;color:var(--ink2)}
+.lines .btns{grid-column:2;grid-row:1/3;display:flex;gap:0;align-items:center;border-left:1px solid var(--rule)}
+.lines .btns button{border:0;border-right:1px solid var(--rule);padding:4px 8px;font-family:var(--mono);font-size:10.5px;color:var(--ink)}
+.lines .btns button:hover{color:var(--rust)}.lines .st{color:var(--ink2)!important}.lines .st.on{color:var(--rust)!important}.lines .st.on path{fill:currentColor}
+.search{margin-top:10px;border:1px solid var(--rule)}.search input{width:100%;font:inherit;font-style:italic;background:transparent;border:0;padding:8px 10px;color:var(--ink);outline:none}
+.camnote{max-width:820px;margin:6px auto 0;font-family:var(--mono);font-size:11px;color:var(--rust);letter-spacing:.04em}
