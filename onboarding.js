@@ -21,3 +21,5 @@ $('dlgGo').onclick=async()=>{const n=$('freeName').value.trim().replace(/[^\w .'
   dlg.hidden=true;api.releaseFree(n);};
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){dlg.hidden=true;}});
 })();
+
+if(localStorage.getItem('primordial.zoomhint')){const h=document.getElementById('zhint');if(h)h.classList.add('gone');}else setTimeout(()=>{const h=document.getElementById('zhint');if(h){h.classList.add('gone');localStorage.setItem('primordial.zoomhint','1');}},9000);

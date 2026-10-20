@@ -71,7 +71,8 @@
     <div class="viewport">
       <canvas id="tank" width="900" height="900"></canvas>
       <div class="loading" aria-live="polite"><svg viewBox="0 0 60 60" width="54" height="54" aria-hidden="true"><circle cx="30" cy="30" r="26" fill="none" stroke="currentColor" stroke-width="1.2"/><path class="spin" d="M30 4a26 26 0 0 1 26 26" fill="none" stroke="#c9531a" stroke-width="2.2" stroke-linecap="round"/></svg><span>Joining the live tank</span></div>
-      <div class="zoom"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">-</button><button id="zreset">1:1</button></div>
+      <div class="zoom"><button id="zin" aria-label="Zoom in" title="Zoom in (+)">+</button><button id="zout" aria-label="Zoom out" title="Zoom out (-)">&minus;</button><button id="zreset" aria-label="Reset view" title="Reset view (0)">1:1</button></div>
+      <p id="zhint" class="zhint">Scroll or pinch to zoom, drag to move</p>
     </div>
     <p class="caption"><span class="fig">Fig. 1</span> The tank at tick <span id="tick2">0</span>. Scroll to zoom, drag to move, click a creature to examine it, or click open water to mark where an intervention lands. <span id="sync" class="sync">Joining the live tank</span></p>
     <p id="camnote" class="camnote" hidden></p>

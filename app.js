@@ -240,12 +240,34 @@ $('starsp').onclick=()=>{if(sel)toggleFollow(sel.sp);};
 // ---------- zoom / pan / pick
 const toWorld=(e)=>{const r=tank.getBoundingClientRect(),sx=(e.clientX-r.left)*900/r.width,sy=(e.clientY-r.top)*900/r.height;return[(sx-view.ox)/view.z,(sy-view.oy)/view.z,sx,sy];};
 function zoomAt(f,sx,sy){const nz=Math.max(1,Math.min(14,view.z*f));view.ox=sx-(sx-view.ox)*nz/view.z;view.oy=sy-(sy-view.oy)*nz/view.z;view.z=nz;if(nz===1){view.ox=0;view.oy=0;}}
-tank.addEventListener('wheel',e=>{e.preventDefault();cam.goal=null;const[, ,sx,sy]=toWorld(e);zoomAt(e.deltaY<0?1.18:1/1.18,sx,sy);},{passive:false});
-$('zin').onclick=()=>zoomAt(1.5,450,450);$('zout').onclick=()=>zoomAt(1/1.5,450,450);$('zreset').onclick=()=>{view.z=1;view.ox=0;view.oy=0;};
-let drag=null;
-tank.addEventListener('mousedown',e=>{drag={x:e.clientX,y:e.clientY,ox:view.ox,oy:view.oy,moved:false};});
-window.addEventListener('mousemove',e=>{if(!drag)return;if(drag.moved&&cam.track)stopTrack('Tracking stopped.');const r=tank.getBoundingClientRect(),k=900/r.width,dx=(e.clientX-drag.x)*k,dy=(e.clientY-drag.y)*k;if(Math.abs(dx)+Math.abs(dy)>4)drag.moved=true;if(drag.moved&&view.z>1){view.ox=drag.ox+dx;view.oy=drag.oy+dy;}});
-window.addEventListener('mouseup',e=>{if(drag&&!drag.moved&&e.target===tank)pick(e);drag=null;});
+tank.addEventListener('wheel',e=>{e.preventDefault();cam.goal=null;const[, ,sx,sy]=toWorld(e);zoomAt(Math.exp(-Math.max(-60,Math.min(60,e.deltaY))*.004),sx,sy);hintSeen();},{passive:false});
+$('zin').onclick=()=>zoomSmooth(1.5,450,450);$('zout').onclick=()=>zoomSmooth(1/1.5,450,450);$('zreset').onclick=()=>{stopTrack();goTo(450,450,1);};
+// Pointer input: one finger or mouse drags, two fingers pinch, tap picks, double tap or double click zooms in at the point.
+const ptrs=new Map();let drag=null,pinch=null,lastTap={t:0,x:0,y:0};
+const scr=e=>{const r=tank.getBoundingClientRect();return[(e.clientX-r.left)*900/r.width,(e.clientY-r.top)*900/r.height];};
+function hintSeen(){if(!localStorage.getItem('primordial.zoomhint')){localStorage.setItem('primordial.zoomhint','1');const h=$('zhint');if(h)h.classList.add('gone');}}
+tank.addEventListener('pointerdown',e=>{tank.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,scr(e));
+  if(ptrs.size===1)drag={x:e.clientX,y:e.clientY,ox:view.ox,oy:view.oy,moved:false};
+  if(ptrs.size===2){const [a,b]=[...ptrs.values()];pinch={d:Math.hypot(a[0]-b[0],a[1]-b[1])||1,z:view.z};drag=null;cam.goal=null;}});
+tank.addEventListener('pointermove',e=>{if(!ptrs.has(e.pointerId))return;ptrs.set(e.pointerId,scr(e));
+  if(pinch&&ptrs.size>=2){const [a,b]=[...ptrs.values()],d=Math.hypot(a[0]-b[0],a[1]-b[1]),mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2;zoomAt(pinch.z*d/pinch.d/view.z,mx,my);hintSeen();return;}
+  if(!drag)return;const r=tank.getBoundingClientRect(),k=900/r.width,dx=(e.clientX-drag.x)*k,dy=(e.clientY-drag.y)*k;
+  if(Math.abs(dx)+Math.abs(dy)>(e.pointerType==='touch'?10:4))drag.moved=true;
+  if(drag.moved){if(cam.track)stopTrack('Tracking stopped.');cam.goal=null;if(view.z>1){view.ox=drag.ox+dx;view.oy=drag.oy+dy;hintSeen();}}});
+function endPtr(e){if(!ptrs.has(e.pointerId))return;ptrs.delete(e.pointerId);
+  if(pinch){if(ptrs.size<2)pinch=null;drag=null;return;}
+  if(drag&&!drag.moved&&e.type==='pointerup'){const now=performance.now(),[sx,sy]=scr(e);
+    if(now-lastTap.t<320&&Math.hypot(sx-lastTap.x,sy-lastTap.y)<40){lastTap.t=0;zoomSmooth(2,sx,sy);hintSeen();}
+    else{lastTap={t:now,x:sx,y:sy};pick(e);}}
+  drag=null;}
+tank.addEventListener('pointerup',endPtr);tank.addEventListener('pointercancel',endPtr);
+tank.addEventListener('dblclick',e=>e.preventDefault());
+// eased zoom toward a screen point
+function zoomSmooth(f,sx,sy){const nz=Math.max(1,Math.min(14,view.z*f)),wx=(sx-view.ox)/view.z,wy=(sy-view.oy)/view.z,cx=(450-view.ox)/view.z,cy=(450-view.oy)/view.z;
+  // keep the tapped point under the finger: solve for the new view centre
+  const gx=wx-(wx-cx)*view.z/nz,gy=wy-(wy-cy)*view.z/nz;if(nz===1)goTo(450,450,1);else goTo(gx,gy,nz);}
+window.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'||e.metaKey||e.ctrlKey)return;
+  if(e.key==='+'||e.key==='=')zoomSmooth(1.5,450,450);else if(e.key==='-'||e.key==='_')zoomSmooth(1/1.5,450,450);else if(e.key==='0'){stopTrack();goTo(450,450,1);}});
 function pick(e){const[x,y]=toWorld(e);let best=null,bd=(14/view.z)**2;for(const k of W.c){const d=(k.x-x)**2+(k.y-y)**2;if(d<bd){bd=d;best=k;}}
   if(best){sel=best;drawSpecimen();drawSkill();}else{mark=[Math.round(x),Math.round(y)];$('markinfo').textContent=`Mark set at ${mark[0]}, ${mark[1]}.`;}}
 
