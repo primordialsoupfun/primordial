@@ -15,21 +15,33 @@ if(localStorage.getItem(GK)!=='done'&&!new URLSearchParams(location.search).get(
 const dlg=$('releaseDlg');let st=null;
 const note=t=>{$('dlgNote').textContent=t||'';};
 async function api(act){const w=window.__prim&&window.__prim.wallet();const r=await fetch('/api/claim?wallet='+encodeURIComponent(w||'')+(act?'&act='+act:''),{method:act?'POST':'GET'});st=await r.json();render();return st;}
-function render(){if(!st)return;$('clAge').textContent=st.minAgeDays;$('clFol').textContent=st.minFollowers;
-  $('clClosed').hidden=st.open;$('clLive').hidden=!st.open;$('clKicker').textContent=st.open?`${st.remaining} of ${st.max} free microbes left`:'Free microbe, opens at launch';
-  if(!st.open){$('dlgGo').hidden=true;return;}
-  // global cap reached: nothing left to claim unless this wallet already holds an unused grant
-  if(st.soldOut&&!st.granted){$('clKicker').textContent='All free microbes claimed';$('clCode').hidden=true;$('clPost').hidden=true;$('clCheck').hidden=true;$('clNameRow').hidden=true;$('dlgGo').hidden=true;$('clCodeOut').textContent='';
-    note(`All ${st.max} free microbes have been claimed. You can still release one at today's price from the Intervene panel.`);return;}
-  $('clCode').hidden=false;
-  $('clCodeOut').textContent=st.code||'';const has=!!st.code;$('clPost').hidden=!has;$('clCheck').hidden=!has||st.granted;
-  if(has&&st.tweet){const text=`My microbe is joining the Primordial tank. ${st.code}`;$('clPost').href='https://x.com/intent/tweet?text='+encodeURIComponent(text)+'&url='+encodeURIComponent('https://x.com/i/status/'+st.tweet);}
+const DK='primordial.claimsteps',done=()=>{try{return JSON.parse(localStorage.getItem(DK)||'{}');}catch(e){return {};}};
+function mark(k){const d=done();d[k]=1;localStorage.setItem(DK,JSON.stringify(d));paint();}
+function paint(){const d=done();for(let k=1;k<=5;k++)$('cs'+k).classList.toggle('done',!!(k===1?st&&st.code:k===5?st&&st.granted:d[k]));}
+const fill=(t,c)=>String(t||'').replace('{code}',c||'');
+function render(){if(!st)return;$('clAge').textContent=st.minAgeDays;$('clFol').textContent=st.minFollowers;const h=st.handle||'primordialfun';$('clHandle').textContent='@'+h;
+  const open=st.open&&!(st.soldOut&&!st.granted),has=!!st.code,tw=st.tweet;
+  $('clClosed').hidden=st.open;$('clKicker').textContent=st.open?`${st.remaining} of ${st.max} free microbes left`:'Free microbe, opens at launch';
+  if(st.soldOut&&!st.granted)$('clKicker').textContent='All free microbes claimed';
+  $('clFollow').href='https://x.com/intent/follow?screen_name='+encodeURIComponent(h);
+  if(tw){$('clLike').href='https://x.com/intent/like?tweet_id='+tw;
+    $('clPost').href='https://x.com/intent/post?text='+encodeURIComponent(fill(st.copy,st.code))+'&url='+encodeURIComponent('https://x.com/'+h+'/status/'+tw);
+    $('clReply').href='https://x.com/intent/post?in_reply_to='+tw+'&text='+encodeURIComponent(fill(st.replyCopy,st.code));}
+  const en=(id,on)=>{const e=$(id);if(e.tagName==='BUTTON')e.disabled=!on;else e.classList.toggle('dis',!on);};
+  en('clCode',open&&!has);en('clPost',open&&has);en('clFollow',open);en('clLike',open&&!!tw);en('clReply',open&&has);en('clCheck',open&&has&&!st.granted);
+  $('clCodeOut').textContent=st.code||'';paint();
+  if(!st.open){$('dlgGo').hidden=true;$('clNameRow').hidden=true;note('Opens at launch. Buttons switch on when the claim opens.');return;}
+  if(st.soldOut&&!st.granted){$('clNameRow').hidden=true;$('dlgGo').hidden=true;note(`All ${st.max} free microbes have been claimed. You can still release one at today's price from the Intervene panel.`);return;}
   const ready=st.granted&&!st.used;$('clNameRow').hidden=!ready;$('dlgGo').hidden=!ready;
   note(st.error||st.reason||(st.used?'Your free microbe is already in the dish.':ready?'Confirmed. Name your microbe and release it.':st.pending?'Looking for your post. This can take a few minutes. You can close this window and come back.':''));}
+['clPost','clFollow','clLike','clReply'].forEach((id,i)=>$(id).addEventListener('click',()=>{if(id==='clLike'||id==='clReply')mark(4);else mark(i===0?2:3);}));
 $('ctaRelease').onclick=async()=>{dlg.hidden=false;await api('');};
 $('dlgCancel').onclick=()=>{dlg.hidden=true;};
 async function needWallet(){const p=window.__prim;if(!p)return false;if(p.wallet())return true;const ok=await p.connect();if(!ok)note('No Solana wallet found. Install Phantom or Solflare, then try again.');return !!ok;}
-$('clCode').onclick=async()=>{if(await needWallet())await api('code');};
+$('clCode').onclick=async()=>{if(!(await needWallet()))return;const w=window.__prim.wallet();const g=await (await fetch('/api/claim?wallet='+encodeURIComponent(w))).json();
+  const pv=window.phantom&&window.phantom.solana||window.solflare||window.solana;if(!pv||!pv.signMessage){note('Your wallet cannot sign messages. Try Phantom or Solflare.');return;}
+  try{const r=await pv.signMessage(new TextEncoder().encode(g.bindMsg),'utf8');const sg=r.signature||r;let b='';for(const x of sg)b+=String.fromCharCode(x);
+    await api('code&sig='+encodeURIComponent(btoa(b)));}catch(e){note('Signature cancelled. Nothing was sent.');}};
 $('clCheck').onclick=async()=>{if(await needWallet())await api('check');setTimeout(()=>{if(!dlg.hidden&&st&&st.pending)api('');},65000);};
 $('dlgGo').onclick=async()=>{const n=$('freeName').value.trim().replace(/[^\w .'-]/g,'').slice(0,24);if(!n){note('Give your microbe a name first.');return;}
   if(!(await needWallet()))return;dlg.hidden=true;window.__prim.releaseFree(n);};
