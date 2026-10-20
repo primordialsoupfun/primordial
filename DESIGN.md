@@ -34,7 +34,7 @@ Visual identity: linocut version B. Deep ink black (#111314) and warm rust orang
 | Meteor | Radius 110 kill zone. Armor gives a 30 or 55 percent survival chance. | 0.05 SOL |
 | Cold front | 700 ticks of higher metabolism, less algae | 0.03 SOL |
 | Toxic bloom | Draining zone for 1200 ticks | 0.03 SOL |
-| Release species | 40 organisms, random genome, plain-text name (not an NFT) | 0.10 SOL |
+| Release species | 40 organisms from a slightly mutated copy of a proven wild brain (random genome before the v3 tick), plain-text name (not an NFT) | 0.10 SOL |
 
 Verification (`/api/submit`):
 - The tx must be confirmed with no error.
@@ -58,6 +58,12 @@ Every released lineage has a tree. Nodes become eligible through in-sim mileston
 
 - Each trait changes the drawing: double membrane, plate lattice, longer or twin flagella, eyespot, antennae, vacuoles, dotted capsule, fringe, mouthparts, green symbionts.
 - **Balance:** every bonus has a cost, and the neural network still decides behaviour. A trait improves the odds but does not guarantee survival. A disaster or a better-adapted wild lineage can still wipe out a fully evolved species.
+
+## Territory (pvp.js)
+- Nine named zones from a noise-warped Voronoi map on a 60 x 60 integer lookup grid (v2, from `cfg.pvp2From`). Checked every 150 ticks.
+- The lineage with the most living mass in a zone holds it. From `cfg.v3From` a challenger needs a 30 percent lead and the holder keeps a zone at least 1,800 ticks (v2: 15 percent, no hold).
+- The overlay is a view setting, off by default (Show territories, or T). The sim, battle feed and leaderboard run either way.
+- Rule changes switch on at ticks recorded in the ledger, so older history replays unchanged.
 
 ## Survival economy (replaces the season prize pool)
 Implemented in `economy.js`, server side only. The deterministic sim only adds the newborn shield flag carried by release events. Tuned in `econ/` (see `econ/REPORT.md`).
@@ -121,7 +127,7 @@ Implemented in `economy.js`, server side only. The deterministic sim only adds t
 
 ## Gambling and fairness notes (get legal review before mainnet)
 - Paying to enter with a chance of winning a prize can count as gambling or a lottery in many US states.
-  - Mitigations: outcomes depend on measurable, player-influenced strategy (placement, timing, trait choices, feeding) rather than pure chance. A free daily release is live (1/4 weight). Consider geo-restrictions.
+  - Mitigations: outcomes depend on measurable, player-influenced strategy (placement, timing, trait choices, feeding) rather than pure chance. A free microbe claim (X share, first 500 wallets, 1/4 weight) is built and closed until launch. Consider geo-restrictions.
   - Even so, the sim contains seeded randomness, so the skill-versus-chance question remains a real legal risk.
 - Burning for traits gives no direct monetary return. Prizes come only from the pool, never from token holders.
 - The token should be burn-only. Do not route revenue to holders and do not market it as an investment.
@@ -129,7 +135,7 @@ Implemented in `economy.js`, server side only. The deterministic sim only adds t
   - Event ordering is public: by tick and then by log index, assigned at verification time.
   - The server could reorder events or censor transactions. Mitigations: hourly commits of the hash and log length, and a later move of ordering to slot plus tx index.
   - The seed is fixed per world. For a new season the seed should be committed in advance and revealed afterwards.
-- **Griefing:** add a disaster cooldown and price escalation per window before mainnet.
+- **Griefing:** disaster cooldowns are live (meteor 300 s, cold front and toxic bloom 180 s). Consider price escalation per window before mainnet.
 
 ## Solana pieces
 - **Payments:** wallet connect (Phantom or Solflare). The tx is a transfer plus a memo, or an SPL burn plus a memo. The server verifies it from the RPC.
@@ -148,7 +154,7 @@ Implemented in `economy.js`, server side only. The deterministic sim only adds t
 - Fees:
   - Commits: about 720 per month at a 5,000 lamport base fee, about 0.0036 SOL.
   - Buyback and burn: about 60 txs per month.
-  - Prize payouts: about 3 per season.
+  - Yield payouts: hourly, plus the daily bonus.
 - Domain: being bought by the user.
 - Everything can be paused instantly.
 

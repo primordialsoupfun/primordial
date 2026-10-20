@@ -24,7 +24,7 @@ PUBLIC_URL=http://localhost:8765 npm start
 Open http://localhost:8765. Configuration is in `.env.example`. Mainnet RPC URLs are refused by this build.
 
 ## Tests
-`node e2e-player.js` runs payments, burns, release pricing, the free release gate, cooldowns and an hourly yield payout against the configured cluster (use `HOUR_TICKS=600 PAYOUT_INTERVAL_S=10` for a fast run). `node e2e-sync.js` opens two browsers, one late, and checks that their world hashes match the server.
+`node e2e-player.js` runs payments, burns, release pricing, the free microbe claim (start the server with `CLAIM_OPEN=1 CAMPAIGN_TWEET_ID=1 X_MOCK_FILE=/tmp/xmock.json CLAIM_POLL_S=2 CLAIM_MAX=1` and pass the same `X_MOCK_FILE`; `CLAIM_ONLY=1` runs just that part, no X API call), cooldowns and an hourly yield payout against the configured cluster (use `HOUR_TICKS=600 PAYOUT_INTERVAL_S=10` for a fast run). `node e2e-sync.js` opens two browsers, one late, and checks that their world hashes match the server.
 
 ## Status
 Test network prototype. The buyback is a dry run: no swap is executed, and treasury test tokens are burned in its place. See DESIGN.md for the full design and open risks.

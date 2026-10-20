@@ -13,13 +13,13 @@ function init(ledger){ledger.claims=ledger.claims||{codes:{},byCode:{},pending:{
 const day=()=>new Date().toISOString().slice(0,10);
 const isOpen=()=>C.OPEN&&!!C.TWEET;
 function status(cl,wallet){const g=cl.granted[wallet];
-  return {open:isOpen(),max:C.MAX,claimed:cl.count,remaining:Math.max(0,C.MAX-cl.count),tweet:C.TWEET||null,minAgeDays:C.MIN_AGE_DAYS,minFollowers:C.MIN_FOLLOWERS,
+  return {open:isOpen(),max:C.MAX,claimed:cl.count,remaining:Math.max(0,C.MAX-cl.count),soldOut:cl.count>=C.MAX,tweet:C.TWEET||null,minAgeDays:C.MIN_AGE_DAYS,minFollowers:C.MIN_FOLLOWERS,
     code:wallet&&isOpen()?cl.codes[wallet]||null:null,pending:!!(wallet&&cl.pending[wallet]),granted:!!g,used:!!(g&&g.used),reason:wallet?cl.reasons[wallet]||null:null};}
 function issue(cl,wallet){if(!isOpen())throw new Error('Free microbe claim opens at launch.');
   if(cl.granted[wallet])return cl.codes[wallet];if(cl.count>=C.MAX)throw new Error('All free microbes have been claimed.');
   if(!cl.codes[wallet]){let c;do{c='SOUP'+crypto.randomBytes(4).toString('hex').toUpperCase().slice(0,6);}while(cl.byCode[c]);cl.codes[wallet]=c;cl.byCode[c]=wallet;}
   return cl.codes[wallet];}
-function check(cl,wallet){if(!isOpen())throw new Error('Free microbe claim opens at launch.');if(!cl.codes[wallet])throw new Error('Get your code first.');
+function check(cl,wallet){if(!isOpen())throw new Error('Free microbe claim opens at launch.');if(!cl.codes[wallet])throw new Error('Get your code first.');if(!cl.granted[wallet]&&cl.count>=C.MAX)throw new Error('All free microbes have been claimed.');
   if(!cl.granted[wallet]){cl.pending[wallet]=Date.now();delete cl.reasons[wallet];}return status(cl,wallet);}
 async function search(query){
   if(C.MOCK)return JSON.parse(require('fs').readFileSync(C.MOCK,'utf8'));

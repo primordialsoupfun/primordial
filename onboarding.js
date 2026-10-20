@@ -18,6 +18,10 @@ async function api(act){const w=window.__prim&&window.__prim.wallet();const r=aw
 function render(){if(!st)return;$('clAge').textContent=st.minAgeDays;$('clFol').textContent=st.minFollowers;
   $('clClosed').hidden=st.open;$('clLive').hidden=!st.open;$('clKicker').textContent=st.open?`${st.remaining} of ${st.max} free microbes left`:'Free microbe, opens at launch';
   if(!st.open){$('dlgGo').hidden=true;return;}
+  // global cap reached: nothing left to claim unless this wallet already holds an unused grant
+  if(st.soldOut&&!st.granted){$('clKicker').textContent='All free microbes claimed';$('clCode').hidden=true;$('clPost').hidden=true;$('clCheck').hidden=true;$('clNameRow').hidden=true;$('dlgGo').hidden=true;$('clCodeOut').textContent='';
+    note(`All ${st.max} free microbes have been claimed. You can still release one at today's price from the Intervene panel.`);return;}
+  $('clCode').hidden=false;
   $('clCodeOut').textContent=st.code||'';const has=!!st.code;$('clPost').hidden=!has;$('clCheck').hidden=!has||st.granted;
   if(has&&st.tweet){const text=`My microbe is joining the Primordial tank. ${st.code}`;$('clPost').href='https://x.com/intent/tweet?text='+encodeURIComponent(text)+'&url='+encodeURIComponent('https://x.com/i/status/'+st.tweet);}
   const ready=st.granted&&!st.used;$('clNameRow').hidden=!ready;$('dlgGo').hidden=!ready;
