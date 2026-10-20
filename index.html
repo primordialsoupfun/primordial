@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Primordial | A shared tank of evolving life.</title>
+<meta name="description" content="One shared tank of artificial life. Every organism carries a neural network. Every intervention is public and replayed identically in every browser.">
+<meta property="og:title" content="Primordial"><meta property="og:description" content="A shared tank of evolving life."><meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://primordialsoup.fun/">
+<meta property="og:url" content="https://primordialsoup.fun/">
+<link rel="icon" href="/icons/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta property="og:image" content="https://primordialsoup.fun/icons/og-fallback.png">
+<meta name="twitter:image" content="https://primordialsoup.fun/icons/og-fallback.png">
+<meta name="theme-color" content="#f3eddb">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="masthead">
+  <div class="mark"><img class="seal" src="/icons/icon-512.png" alt="" width="56" height="56"><div>
+    <span class="title">Primordial</span>
+    <span class="sub">A shared tank of evolving life. Plate I.</span></div>
+  </div>
+  <dl class="ledger">
+    <div><dt>Epoch</dt><dd id="tick">0</dd></div>
+    <div><dt>Organisms</dt><dd id="pop">0</dd></div>
+    <div><dt>Living species</dt><dd id="nsp">0</dd></div>
+    <div><dt><span class="tk">SOUP</span> burned</dt><dd id="burn">0</dd></div>
+    <div><dt>Survival pool</dt><dd id="pool">0</dd></div>
+  </dl>
+  <div class="wallet"><button id="connect" class="ghost"><span>Connect wallet</span></button><span id="who" class="mono"></span></div>
+</header>
+
+<main class="layout">
+  <section class="plate">
+    <div class="viewport">
+      <canvas id="tank" width="900" height="900"></canvas>
+      <div class="zoom"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">-</button><button id="zreset">1:1</button></div>
+    </div>
+    <p class="caption"><span class="fig">Fig. 1</span> The tank at epoch <span id="tick2">0</span>. Scroll to magnify, drag to move. Click an organism to examine it, or click open water to set a mark for your intervention. <span id="sync" class="sync">Connecting</span></p>
+
+    <section class="block below">
+      <h2>Hall of Survivors</h2>
+      <p class="hint">At the close of each season the tank scores every released lineage by descendants alive and time survived. The top three releasers share the survival pool, 50, 30 and 20 percent. Anyone can recompute the result from the public event log.</p>
+      <div class="hall"><div><h3>Standing now</h3><ol id="standing" class="rank"></ol></div><div><h3>Past seasons</h3><ol id="seasons" class="rank"></ol></div></div>
+    </section>
+  </section>
+
+  <aside class="notes">
+    <section class="block">
+      <h2>Intervene</h2>
+      <p class="hint">Interventions land at your mark, or at a random place if none is set. Each one enters the public log and is replayed identically in every browser. <span id="markinfo"></span></p>
+      <div class="actions">
+        <button data-ev="food"><span>Food bloom</span><em>0.01 SOL</em></button>
+        <button data-ev="foodburn"><span>Food bloom</span><em>burn 50</em></button>
+        <button data-ev="meteor"><span>Meteor strike</span><em>0.05 SOL</em></button>
+        <button data-ev="cold"><span>Cold front</span><em>0.03 SOL</em></button>
+        <button data-ev="toxic"><span>Toxic bloom</span><em>0.03 SOL</em></button>
+        <button data-ev="none" disabled><span class="muted">Drought</span><em>soon</em></button>
+      </div>
+      <form id="release" class="release">
+        <label for="spname">Release a named species. Twenty percent of the fee funds the survival pool, the rest is burned.</label>
+        <div class="row"><input id="spname" maxlength="24" placeholder="Name, plain text" autocomplete="off"><button type="submit"><span>Release</span><em>0.10 SOL</em></button></div>
+      </form>
+      <div id="toast" class="toast" hidden></div>
+    </section>
+
+    <section class="block">
+      <h2>Specimen</h2>
+      <div id="specimen" class="specimen empty">No organism selected. Click one in the tank.</div>
+      <canvas id="brain" width="560" height="280"></canvas>
+      <div class="cardrow" id="cardrow" hidden><button id="sharesp" class="ghost"><span>Share on X</span></button><button id="cardpng" class="ghost"><span>Specimen card</span></button></div>
+    </section>
+
+    <section class="block">
+      <h2>Evolution</h2>
+      <p class="hint">Each released lineage can branch. A node opens when the lineage reaches its milestone, and the releaser activates it by burning <span class="tk">SOUP</span>. Choosing Armor closes Locomotion, Predation closes Symbiosis. Traits help, they do not guarantee survival.</p>
+      <div id="skilltree" class="skilltree"></div>
+    </section>
+
+    <section class="block">
+      <h2>Lineage</h2>
+      <canvas id="tree" width="560" height="240"></canvas>
+    </section>
+
+    <section class="block">
+      <h2>Treasury record</h2>
+      <ol id="chainlog" class="log"></ol>
+    </section>
+
+    <section class="block">
+      <h2>Event log</h2>
+      <ol id="log" class="log"></ol>
+    </section>
+  </aside>
+</main>
+
+<footer class="colophon">
+  <p>Fees buy back and burn <span class="tk">SOUP</span> daily, and every burn is linked to the explorer. A small share of release fees funds the survival pool. World state hashes are committed on chain so anyone can replay the tank and verify its history.</p>
+  <p class="mono" id="cluster">Devnet prototype.</p>
+</footer>
+<script src="/vendor/web3.js"></script>
+<script src="sim.js"></script>
+<script src="organism.js"></script>
+<script src="card.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

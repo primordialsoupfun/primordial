@@ -1,0 +1,9 @@
+node_modules/
+.keys/
+data/
+.env
+.env.*
+!.env.example
+*.log
+screenshot*.png
+brand/

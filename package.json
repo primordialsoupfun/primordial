@@ -1,0 +1,23 @@
+{
+  "name": "primordial",
+  "version": "1.0.0",
+  "description": "A shared tank of evolving life.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "build": "echo no build step",
+    "test:e2e": "node e2e-player.js && node e2e-sync.js"
+  },
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "@napi-rs/canvas": "^1.0.12",
+    "@solana/spl-token": "^0.4.15",
+    "@solana/web3.js": "^1.99.0",
+    "bs58": "^6.0.0",
+    "puppeteer-core": "^24.43.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
