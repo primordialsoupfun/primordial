@@ -40,6 +40,8 @@ if(ledger.cfg.pvpFrom==null){ledger.cfg.pvpFrom=Math.ceil((W.tick+LEAD+600)/150)
 if(ledger.cfg.pvp2From==null){ledger.cfg.pvp2From=Math.max(ledger.cfg.pvpFrom,Math.ceil((W.tick+LEAD+900)/150)*150);save();}W.cfg.pvp2From=ledger.cfg.pvp2From;
 // v3 rules (releases start from a proven brain; zones need a 30 percent lead and hold at least a minute) from a fixed future tick.
 if(ledger.cfg.v3From==null){ledger.cfg.v3From=Math.max(ledger.cfg.pvp2From,Math.ceil((W.tick+LEAD+900)/150)*150);save();}W.cfg.v3From=ledger.cfg.v3From;
+// v4 rule (released lineages start at half metabolic cost, back to normal over 6 h) from a fixed future tick.
+if(ledger.cfg.v4From==null){ledger.cfg.v4From=Math.max(ledger.cfg.v3From,Math.ceil((W.tick+LEAD+900)/150)*150);save();}W.cfg.v4From=ledger.cfg.v4From;
 snapshot={tick:W.tick,state:JSON.stringify(W)};
 
 // SSE

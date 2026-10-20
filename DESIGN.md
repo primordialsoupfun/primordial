@@ -94,6 +94,7 @@ Implemented in `economy.js`, server side only. The deterministic sim only adds t
   - Daily spend cap `X_DAILY_SPEND_USD` (default 2). Estimated cost: one post read plus one user read per claim, $0.005 plus $0.010 at X pay-per-use rates, so about $1.50 per 100 claims, or $0.50 if user expansions are not billed separately. Likes are encouraged but never verified.
   - Same 1/4 weight and 10% free cap as before.
 - At most 10 paid releases per wallet per day.
+- v4 rule (cfg.v4From, fixed future tick in the ledger): a released lineage pays half metabolic cost, rising linearly to normal over 6 h (V4FADE=648000 ticks). Median lineage life went from about 5 min to 1.2-1.5 h with wide spread; see econ/SURVIVAL_NOTES.md.
 - Released lineages are shielded from disasters for 10 minutes. This is done via `ev.shield`, so older logs replay unchanged.
 - Cooldowns: meteor 300 s; cold front and toxic bloom 180 s each.
 
