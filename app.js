@@ -7,7 +7,10 @@ const MONO='"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace',SERIF='"Iowan
 const DPR=Math.min(1.5,window.devicePixelRatio||1);
 const tank=$('tank'),tc=tank.getContext('2d'),brain=$('brain'),bc=brain.getContext('2d'),tree=$('tree'),trc=tree.getContext('2d');
 for(const c of [tank,brain,tree]){c.dataset.w=c.width;c.dataset.h=c.height;c.width*=DPR;c.height*=DPR;}
-const srvHash=new Map();let CFG=null,W=null,evAt=new Map(),target=0,sel=null,mark=null,ledger=null,wallet=null,hashOk=null,lastHash=null;
+const srvHash=new Map();let srvTick=0,srvAt=0;
+// Smooth clock: advance at the server rate between heartbeats, never more than 30 ticks ahead of the last heartbeat (events are scheduled 45 ticks ahead).
+function predicted(){if(!srvAt)return target;return Math.max(target,Math.min(srvTick+30,srvTick+Math.floor((performance.now()-srvAt)*(CFG.hz||30)/1000)));}
+let CFG=null,W=null,evAt=new Map(),target=0,sel=null,mark=null,ledger=null,wallet=null,hashOk=null,lastHash=null;
 const view={z:1,ox:0,oy:0};
 const trails=new Map();
 const short=a=>a&&a.length>12?a.slice(0,4)+'...'+a.slice(-4):(a||'');
@@ -23,7 +26,7 @@ async function boot(){
   $('cluster').textContent=({localnet:'Local validator',devnet:'Devnet',mainnet:'Mainnet'}[CFG.cluster]||CFG.cluster)+' prototype. Treasury '+short(CFG.treasury)+'.';
   await resync();
   const es=new EventSource('/api/stream');
-  es.addEventListener('tick',m=>{target=JSON.parse(m.data).t;});
+  es.addEventListener('tick',m=>{srvTick=JSON.parse(m.data).t;srvAt=performance.now();});
   es.addEventListener('event',m=>{const e=JSON.parse(m.data);addEv(e);if(e.at<W.tick){setSync('Late event, resyncing',false);resync();}});
   es.addEventListener('hash',m=>{const d=JSON.parse(m.data);srvHash.set(d.t,d.h);checkHash(d.t);});
   es.addEventListener('chain',()=>loadLedger());
@@ -42,6 +45,30 @@ function setSync(t,ok){const e=$('sync');e.textContent=t;e.className='sync'+(ok?
 // ---------- layers: static plate (redrawn only on zoom/pan) and a food layer refreshed every 8 ticks
 const bg=document.createElement('canvas');bg.width=tank.width;bg.height=tank.height;bg.className='bg';tank.parentNode.insertBefore(bg,tank);let bgKey='';
 const foodLayer=document.createElement('canvas');foodLayer.width=tank.width;foodLayer.height=tank.height;let foodTick=-99;
+// ---------- WebGL point layer for the whole-dish view (organisms as small oriented cells, algae as specks)
+const GL=(function(){const cv=document.createElement('canvas');cv.width=tank.width;cv.height=tank.height;cv.className='bg';tank.parentNode.insertBefore(cv,tank);
+  const gl=cv.getContext('webgl',{premultipliedAlpha:true,antialias:false,alpha:true});if(!gl){cv.remove();return null;}
+  const vs=`attribute vec2 p;attribute float s;attribute vec4 c;attribute float a;uniform vec2 res;varying vec4 vc;varying float va;varying float vk;
+  void main(){gl_Position=vec4(p/res*2.0-1.0,0,1);gl_Position.y=-gl_Position.y;gl_PointSize=s;vc=c;va=a;vk=step(0.9,c.a);}`;
+  const fs=`precision mediump float;varying vec4 vc;varying float va;varying float vk;
+  void main(){vec2 q=gl_PointCoord*2.0-1.0;
+    if(vk<0.5){float d=length(q);if(d>1.0)discard;gl_FragColor=vec4(vc.rgb,vc.a*(1.0-smoothstep(.6,1.0,d)))*1.0;gl_FragColor.rgb*=gl_FragColor.a;return;}
+    float cs=cos(va),sn=sin(va);vec2 r=vec2(q.x*cs+q.y*sn,-q.x*sn+q.y*cs);vec2 e=r/vec2(0.95,0.58);float d=length(e);if(d>1.0)discard;
+    vec3 ink=vc.rgb*0.42;float rim=smoothstep(.62,.92,d);float nuc=1.0-smoothstep(.16,.26,length(r-vec2(.12,0.0)));
+    vec3 col=mix(mix(vc.rgb*1.08,vc.rgb,d),ink,rim*.85);col=mix(col,ink,nuc*.7);col=mix(col,vec3(.95,.93,.86),.22*(1.0-rim));float al=.85*(1.0-smoothstep(.92,1.0,d));gl_FragColor=vec4(col*al,al);}`;
+  const sh=(t,src)=>{const o=gl.createShader(t);gl.shaderSource(o,src);gl.compileShader(o);return o;};
+  const pr=gl.createProgram();gl.attachShader(pr,sh(gl.VERTEX_SHADER,vs));gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,fs));gl.linkProgram(pr);if(!gl.getProgramParameter(pr,gl.LINK_STATUS)){cv.remove();return null;}
+  gl.useProgram(pr);const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);const ST=8*4;
+  const at=(n,sz,off)=>{const l=gl.getAttribLocation(pr,n);gl.enableVertexAttribArray(l);gl.vertexAttribPointer(l,sz,gl.FLOAT,false,ST,off);};
+  at('p',2,0);at('s',1,8);at('c',4,12);at('a',1,28);const ures=gl.getUniformLocation(pr,'res');
+  gl.enable(gl.BLEND);gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);let data=new Float32Array(8*3000);let shown=false;
+  function draw(W,view){const n=W.food.length+W.c.length;if(data.length<n*8)data=new Float32Array(n*8*1.5|0);let j=0;const k=DPR,Z=view.z;
+    for(const f of W.food){data[j++]=(f.x*Z+view.ox)*k;data[j++]=(f.y*Z+view.oy)*k;data[j++]=2.6*k*Math.sqrt(Z);data[j++]=96/255;data[j++]=112/255;data[j++]=62/255;data[j++]=.55;data[j++]=-1;}
+    const S=W.species;for(const o of W.c){const col=S[o.sp].col,sz=(2.4+Math.min(1.6,o.e*.8))*2.5*Z*k;data[j++]=(o.x*Z+view.ox)*k;data[j++]=(o.y*Z+view.oy)*k;data[j++]=sz;data[j++]=col[0]/255;data[j++]=col[1]/255;data[j++]=col[2]/255;data[j++]=1;data[j++]=Math.atan2(o.dy,o.dx);}
+    gl.viewport(0,0,cv.width,cv.height);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);gl.uniform2f(ures,cv.width,cv.height);
+    gl.bufferData(gl.ARRAY_BUFFER,data.subarray(0,j),gl.DYNAMIC_DRAW);gl.drawArrays(gl.POINTS,0,j/8);shown=true;cv.style.visibility='visible';}
+  function hide(){if(shown){gl.clear(gl.COLOR_BUFFER_BIT);cv.style.visibility='hidden';shown=false;}}
+  return {draw,hide};})();
 // ---------- plate background
 const plate=document.createElement('canvas');plate.width=900*DPR;plate.height=900*DPR;
 function drawPlate(){const c=plate.getContext('2d');c.setTransform(DPR,0,0,DPR,0,0);const{CX,CY,R}=P;
@@ -59,11 +86,12 @@ drawPlate();
 // ---------- sprite caches (visual only). Organisms are pre-drawn per species, traits, size, zoom bucket and 4 swim phases.
 const SPR=new Map();let sprZ=0;
 function zBucket(z){return z;}
-function sprite(sp,root,size,z,ph,ang){const zb=zBucket(z);if(zb!==sprZ){SPR.clear();sprZ=zb;}
-  const key=sp.id+'|'+sp.traits.join(',')+'|'+size+'|'+ph+'|'+ang;let e=SPR.get(key);if(e)return e;
-  const k=view.z*DPR,half=Math.ceil(size*4.2*k)+2,cv=document.createElement('canvas');cv.width=cv.height=half*2;const c=cv.getContext('2d');
+const LEVELS=[3,4.5,6.75,10,14];function snapZ(z){let b=LEVELS[0];for(const l of LEVELS)if(Math.abs(Math.log(l/z))<Math.abs(Math.log(b/z)))b=l;return b;}
+function sprite(sp,root,size,z,ph,ang){const zb=z;
+  const key=zb+'|'+sp.id+'|'+sp.traits.join(',')+'|'+size+'|'+ph+'|'+ang;let e=SPR.get(key);if(e)return e;
+  const k=zb*DPR,half=Math.ceil(size*4.2*k)+2,cv=document.createElement('canvas');cv.width=cv.height=half*2;const c=cv.getContext('2d');
   const a=ang*Math.PI/8;c.setTransform(k,0,0,k,half,half);O.draw(c,{x:0,y:0,dx:Math.cos(a),dy:Math.sin(a),id:ph*5,v:.8},sp,root,size,zb,ph*6,1);
-  e={cv,half,k};if(SPR.size>12000)SPR.clear();SPR.set(key,e);return e;}
+  e={cv,half,k};if(SPR.size>20000)SPR.clear();SPR.set(key,e);return e;}
 const ALG=new Map();
 function algaeSprite(t,rot,z){const zb=zBucket(z),key=t+'|'+rot+'|'+zb;let e=ALG.get(key);if(e)return e;
   const k=zb*DPR,half=Math.ceil(3*k)+2,cv=document.createElement('canvas');cv.width=cv.height=half*2;const c=cv.getContext('2d');c.setTransform(k,0,0,k,half,half);
@@ -87,18 +115,24 @@ function drawTank(){
     c.strokeStyle=`rgba(17,19,20,${.5*a})`;c.lineWidth=.7/view.z;c.setLineDash([1,3]);c.beginPath();c.arc(k.x,k.y,k.r,0,7);c.stroke();c.setLineDash([]);
     c.fillStyle=`rgba(17,19,20,${.55*a})`;c.font=`italic ${12/view.z}px ${SERIF}`;c.textAlign='center';c.fillText('impact, epoch '+k.t,k.x,k.y-k.r-6/view.z);}
   const vis=(x,y,m)=>{const sx=x*view.z+view.ox,sy=y*view.z+view.oy;return sx>-m&&sx<900+m&&sy>-m&&sy<900+m;};
+  const S=W.species,DETAIL=view.z>=3;
+  if(!DETAIL&&GL){GL.draw(W,view,z);}
+  else{if(GL)GL.hide();
   if(W.tick-foodTick>=8||W.tick<foodTick){foodTick=W.tick;const fc=foodLayer.getContext('2d');fc.setTransform(DPR,0,0,DPR,0,0);fc.clearRect(0,0,900,900);fc.save();fc.translate(view.ox,view.oy);fc.scale(view.z,view.z);
-    for(let i=0;i<W.food.length;i++){const f=W.food[i];if(!vis(f.x,f.y,10))continue;const a=algaeSprite(i%3,(i*7)%8,z);fc.drawImage(a.cv,f.x-a.half/a.k,f.y-a.half/a.k,a.cv.width/a.k,a.cv.height/a.k);}fc.restore();}
+    for(let i=0;i<W.food.length;i++){const f=W.food[i];if(!vis(f.x,f.y,10))continue;if(!DETAIL){fc.fillStyle='rgba(96,112,62,.6)';fc.fillRect(f.x-1,f.y-1,2,2);continue;}const a=algaeSprite(i%3,(i*7)%8,z);fc.drawImage(a.cv,f.x-a.half/a.k,f.y-a.half/a.k,a.cv.width/a.k,a.cv.height/a.k);}fc.restore();}
   c.save();c.setTransform(1,0,0,1,0,0);c.drawImage(foodLayer,0,0);c.restore();
-  const S=W.species,ops=[];c.beginPath();
-  for(const k of W.c){let tr=trails.get(k.id);if(!tr){tr=[];trails.set(k.id,tr);}
-    if((W.tick&3)===0){tr.push(k.x,k.y);if(tr.length>18)tr.splice(0,2);}
-    if(!vis(k.x,k.y,30))continue;const sp=S[k.sp];
+  const ops=[];c.beginPath();const L=snapZ(view.z),sc=view.z/L;
+  for(const k of W.c){if(!vis(k.x,k.y,30))continue;const sp=S[k.sp];
+    if(!DETAIL){ops.push(null,k.x,k.y,sp.col);continue;}
+    let tr=trails.get(k.id);if(!tr){tr=[];trails.set(k.id,tr);}if((W.tick&3)===0){tr.push(k.x,k.y);if(tr.length>18)tr.splice(0,2);}
     if(tr.length>=4){c.moveTo(tr[0],tr[1]);for(let i=2;i<tr.length;i+=2)c.lineTo(tr[i],tr[i+1]);c.lineTo(k.x,k.y);}
-    const size=2.4+Math.round(Math.min(1.6,k.e*.8)/.8)*.8,ph=((W.tick>>3)+k.id)&1,ang=(Math.round(Math.atan2(k.dy,k.dx)/(Math.PI/8))+16)&15,spr=sprite(sp,S[sp.root],size,z,ph,ang);
-    const sx=(k.x*view.z+view.ox)*DPR,sy=(k.y*view.z+view.oy)*DPR;ops.push(spr.cv,Math.round(sx-spr.half),Math.round(sy-spr.half));}
-  c.strokeStyle='rgba(90,80,64,.16)';c.lineWidth=.6/view.z;c.stroke();
-  c.save();c.setTransform(1,0,0,1,0,0);for(let i=0;i<ops.length;i+=3)c.drawImage(ops[i],ops[i+1],ops[i+2]);c.restore();
+    const size=2.4+Math.round(Math.min(1.6,k.e*.8)/.8)*.8,ph=((W.tick>>3)+k.id)&1,ang=(Math.round(Math.atan2(k.dy,k.dx)/(Math.PI/8))+16)&15,spr=sprite(sp,S[sp.root],size,L,ph,ang);
+    ops.push(spr,(k.x*view.z+view.ox)*DPR,(k.y*view.z+view.oy)*DPR,0);}
+  if(DETAIL){c.strokeStyle='rgba(90,80,64,.16)';c.lineWidth=.6/view.z;c.stroke();}
+  c.save();c.setTransform(1,0,0,1,0,0);
+  for(let i=0;i<ops.length;i+=4){const o=ops[i];if(!o){const col=ops[i+3];c.fillStyle=`rgb(${col[0]},${col[1]},${col[2]})`;c.fillRect((ops[i+1]*view.z+view.ox)*DPR-2,(ops[i+2]*view.z+view.oy)*DPR-1.5,4,3);continue;}
+    const w=o.cv.width*sc,h=o.cv.height*sc;c.drawImage(o.cv,ops[i+1]-w/2,ops[i+2]-h/2,w,h);}
+  c.restore();}
   if(W.tick%200===0){const alive=new Set(W.c.map(k=>k.id));for(const id of trails.keys())if(!alive.has(id))trails.delete(id);}
   if(mark){c.strokeStyle=RUST;c.lineWidth=.8/view.z;const m=8/view.z;c.beginPath();c.moveTo(mark[0]-m,mark[1]);c.lineTo(mark[0]+m,mark[1]);c.moveTo(mark[0],mark[1]-m);c.lineTo(mark[0],mark[1]+m);c.stroke();
     c.beginPath();c.arc(mark[0],mark[1],m*1.6,0,7);c.stroke();c.fillStyle=RUST;c.font=`italic ${12/view.z}px ${SERIF}`;c.textAlign='left';c.fillText('your mark',mark[0]+m*2,mark[1]+4/view.z);}
@@ -209,14 +243,20 @@ document.querySelectorAll('[data-ev]').forEach(b=>b.addEventListener('click',()=
 $('release').addEventListener('submit',e=>{e.preventDefault();const n=$('spname').value.trim().replace(/[^\w .'-]/g,'').slice(0,24);if(!n)return;buy(Object.assign({t:'release',name:n},mark?{x:mark[0],y:mark[1]}:{}),CFG.prices.release,0);});
 // ---------- loop
 let frame=0;
-function catchUp(){const t0=performance.now();while(W.tick<target&&performance.now()-t0<14)stepOne();}
+function catchUp(){target=predicted();const t0=performance.now();while(W.tick<target&&performance.now()-t0<14)stepOne();}
 setInterval(()=>{if(W)catchUp();},33);
-function loop(){catchUp();frame++;
+let lastDraw=0,lastTickDrawn=-1,viewKey='',lastDom=0,lastBrain=0,lastSlow=0;
+function loop(now){catchUp();requestAnimationFrame(loop);
   if(qs.get('sp')&&!sel){const id=+qs.get('sp');sel=W.c.find(k=>k.sp===id||W.species[k.sp].root===id)||null;if(sel){drawSpecimen();drawSkill();}}
   if(qs.get('pick')==='released'&&!sel){sel=W.c.find(k=>W.species[W.species[k.sp].root].released)||null;if(sel){drawSpecimen();drawSkill();}}
-  if(qs.get('zoom')&&frame===2&&sel){view.z=+qs.get('zoom');view.ox=450-sel.x*view.z;view.oy=450-sel.y*view.z;}
-  {const t=performance.now();drawTank();perf.draw+=performance.now()-t;perf.draws++;perf.frames++;}if(frame%3===0){drawBrain();drawSpecimen();}if(frame%30===1){drawTree();drawSkill();}
-  if(frame%10===1){$('tick').textContent=W.tick;$('tick2').textContent=W.tick;$('pop').textContent=W.c.length;$('nsp').textContent=W.species.filter(s=>s.count).length;}
-  requestAnimationFrame(loop);}
+  if(qs.get('zoom')&&!loop.z&&sel){loop.z=1;view.z=+qs.get('zoom');view.ox=450-sel.x*view.z;view.oy=450-sel.y*view.z;}
+  const vk=view.z+','+view.ox+','+view.oy+','+(sel?sel.id:0)+','+(mark?mark.join():'');
+  if(now-lastDraw<31||(W.tick===lastTickDrawn&&vk===viewKey))return;
+  lastDraw=now;lastTickDrawn=W.tick;viewKey=vk;frame++;
+  {const t=performance.now();drawTank();perf.draw+=performance.now()-t;perf.draws++;perf.frames++;}
+  if(now-lastBrain>250){lastBrain=now;drawBrain();}
+  if(now-lastDom>500){lastDom=now;drawSpecimen();$('tick').textContent=W.tick;$('tick2').textContent=W.tick;$('pop').textContent=W.c.length;let n=0;for(const s of W.species)if(s.count)n++;$('nsp').textContent=n;}
+  if(now-lastSlow>1500){lastSlow=now;drawTree();drawSkill();}
+}
 boot();
 })();

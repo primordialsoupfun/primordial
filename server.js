@@ -92,6 +92,9 @@ function cardData(kind,id){
   if(kind==='hall'){const p=ledger.payouts.filter(x=>x.winners.length).slice(-1)[0];if(!p)return null;const w=p.winners[0];const S=W.species[w.sp];
     return {kicker:'Hall of Survivors, epoch '+p.epoch,title:w.name,subtitle:`First place. ${w.alive} descendants alive after ${w.ticks} ticks.`,sp:S,root:S,tick:p.tick,stats:p.winners.map(x=>['Place '+x.place,x.name])};}
 }
+// Cache busting: asset URLs carry the deployed commit (or a content hash locally).
+const VER=(process.env.RENDER_GIT_COMMIT||'').slice(0,7)||require('crypto').createHash('sha1').update(['app.js','sim.js','organism.js','card.js','style.css'].map(f=>fs.readFileSync(__dirname+'/'+f)).join('')).digest('hex').slice(0,8);
+let _idx=null;function indexHtml(){if(!_idx||!process.env.RENDER_GIT_COMMIT)_idx=fs.readFileSync(__dirname+'/index.html','utf8').replace(/(src|href)="(\/?)(vendor\/web3\.js|sim\.js|organism\.js|card\.js|app\.js|style\.css)"/g,(m,a,sl,f)=>`${a}="/${f}?v=${VER}"`);return _idx;}
 const short=a=>a&&a.length>12?a.slice(0,4)+'...'+a.slice(-4):a||'unknown';
 let canvasMod=null;try{canvasMod=require('@napi-rs/canvas');}catch(e){}
 function ogPng(d){const c=canvasMod.createCanvas(1200,630);Card.card(c.getContext('2d'),d,Org,{serif:'serif',mono:'monospace'});return c.toBuffer('image/png');}
@@ -124,7 +127,8 @@ http.createServer(async(req,res)=>{
   if(f==='/favicon.ico'){res.writeHead(200,{'content-type':'image/x-icon'});return fs.createReadStream(__dirname+'/icons/favicon.ico').pipe(res);}
   const allowed=['/index.html','/style.css','/sim.js','/organism.js','/card.js','/app.js','/node_modules/@solana/web3.js/lib/index.iife.min.js'];
   if(!allowed.includes(f)){res.writeHead(404);return res.end('not found');}
-  res.writeHead(200,{'content-type':MIME[path.extname(f)]||'application/octet-stream'});fs.createReadStream(__dirname+f).pipe(res);
+  if(f==='/index.html'){res.writeHead(200,{'content-type':MIME['.html'],'cache-control':'no-cache'});return res.end(indexHtml());}
+  res.writeHead(200,{'content-type':MIME[path.extname(f)]||'application/octet-stream','cache-control':u.query.v?'public, max-age=31536000, immutable':'no-cache'});fs.createReadStream(__dirname+f).pipe(res);
   }catch(e){console.error(e);json(res,{ok:false,error:'server error'},500);}
 }).listen(PORT,()=>console.log('primordial on http://localhost:'+PORT));
 treasury=C.load('treasury');
