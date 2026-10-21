@@ -44,6 +44,8 @@ if(ledger.cfg.pvp2From==null){ledger.cfg.pvp2From=Math.max(ledger.cfg.pvpFrom,Ma
 if(ledger.cfg.v3From==null){ledger.cfg.v3From=Math.max(ledger.cfg.pvp2From,Math.ceil((W.tick+LEAD+900)/150)*150);save();}W.cfg.v3From=ledger.cfg.v3From;
 // v4 rule (released lineages start at half metabolic cost, back to normal over 6 h) from a fixed future tick.
 if(ledger.cfg.v4From==null){ledger.cfg.v4From=Math.max(ledger.cfg.v3From,Math.ceil((W.tick+LEAD+900)/150)*150);save();}W.cfg.v4From=ledger.cfg.v4From;
+// v5 rule (head start only below 100 creatures; economy exponent 1.0 and price target 1.0x) from a fixed future tick.
+if(ledger.cfg.v5From==null){ledger.cfg.v5From=Math.max(ledger.cfg.v4From,Math.ceil((W.tick+LEAD+900)/150)*150);save();}W.cfg.v5From=ledger.cfg.v5From;eco.v5From=ledger.cfg.v5From;
 snapshot={tick:W.tick,state:JSON.stringify(W)};
 
 // SSE
@@ -156,6 +158,7 @@ http.createServer(async(req,res)=>{
     const now=Date.now();const r=rl.get(ip)||[];const recent=r.filter(t=>now-t<60000);if(recent.length>60)return json(res,{error:'rate limited'},429);recent.push(now);rl.set(ip,recent);
     if(!j||Array.isArray(j)||!ok.includes(j.method))return json(res,{error:'method not allowed'},403);
     const up=await fetch(C.RPC,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:j.id||1,method:j.method,params:j.params||[]})});res.writeHead(up.status,{'content-type':'application/json'});return res.end(await up.text());}
+  if(p==='/api/claim/code'){const r=Claims.lookup(claims,u.query.code);return r&&r.granted?json(res,r):json(res,{error:'not found'},404);}
   if(p==='/api/free-release'&&req.method==='POST'){let b='';for await(const ch of req)b+=ch;try{const q=JSON.parse(b);const w=String(q.wallet||'');new web3.PublicKey(w);
       const name=String(q.name||'').replace(/[^\w .'-]/g,'').trim().slice(0,24);if(!name)throw new Error('name required');
       const code=claims.codes[w];if(!code)throw new Error('Get your code first.');

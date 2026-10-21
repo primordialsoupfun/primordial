@@ -15,9 +15,9 @@ if(localStorage.getItem(GK)!=='done'&&!new URLSearchParams(location.search).get(
 const dlg=$('releaseDlg');let st=null;
 const note=t=>{$('dlgNote').textContent=t||'';};
 async function api(act){const w=window.__prim&&window.__prim.wallet();const r=await fetch('/api/claim?wallet='+encodeURIComponent(w||'')+(act?'&act='+act:''),{method:act?'POST':'GET'});st=await r.json();render();return st;}
-const DK='primordial.claimsteps',done=()=>{try{return JSON.parse(localStorage.getItem(DK)||'{}');}catch(e){return {};}};
+const signedNow=new Set();const DK='primordial.claimsteps',done=()=>{try{return JSON.parse(localStorage.getItem(DK)||'{}');}catch(e){return {};}};
 function mark(k){const d=done();d[k]=1;localStorage.setItem(DK,JSON.stringify(d));paint();}
-function paint(){const d=done();for(let k=1;k<=5;k++)$('cs'+k).classList.toggle('done',!!(k===1?st&&st.code:k===5?st&&st.granted:d[k]));}
+function paint(){const d=done();for(let k=1;k<=5;k++)$('cs'+k).classList.toggle('done',!!(k===1?st&&st.code&&st.wallet&&st.wallet===(window.__prim&&window.__prim.wallet()):k===5?st&&st.granted:d[k]));}
 const fill=(t,c)=>String(t||'').replace('{code}',c||'');
 function render(){if(!st)return;$('clAge').textContent=st.minAgeDays;$('clFol').textContent=st.minFollowers;const h=st.handle||'primordialfun';$('clHandle').textContent='@'+h;
   const open=st.open&&!(st.soldOut&&!st.granted),pre=!!st.codesOpen&&!(st.soldOut&&!st.granted),has=!!st.code,tw=st.tweet;
@@ -29,7 +29,7 @@ function render(){if(!st)return;$('clAge').textContent=st.minAgeDays;$('clFol').
     $('clReply').href='https://x.com/intent/post?in_reply_to='+tw+'&text='+encodeURIComponent(fill(st.replyCopy,st.code));}
   const en=(id,on)=>{const e=$(id);if(e.tagName==='BUTTON')e.disabled=!on;else e.classList.toggle('dis',!on);};
   en('clCode',pre&&!has);en('clPost',open&&has);en('clFollow',pre||open);en('clLike',open&&!!tw);en('clReply',open&&has);en('clCheck',open&&has&&!st.granted);
-  $('clCodeOut').textContent=st.code||'';{const w=window.__prim&&window.__prim.wallet();$('clDisc').hidden=!w;$('clWho').textContent=w?'Connected '+w.slice(0,4)+'...'+w.slice(-4):'';}document.querySelectorAll('.cs5 .wait').forEach(e=>e.hidden=!(pre&&!tw));$('clCode').hidden=has;if(pre&&!st.open)$('clKicker').textContent=has?'Your code is ready':'Free microbe, sign up now';paint();
+  $('clCodeOut').textContent=st.code||'';{const w=window.__prim&&window.__prim.wallet();$('clDisc').hidden=!w;const sw=w?w.slice(0,4)+'...'+w.slice(-4):'';$('clWho').textContent=!w?'':!has?`Connected ${sw}, sign to continue`:signedNow.has(w)?`Signed by ${sw}`:`Signed earlier by ${sw}`;}document.querySelectorAll('.cs5 .wait').forEach(e=>e.hidden=!(pre&&!tw));$('clCode').hidden=has;if(pre&&!st.open)$('clKicker').textContent=has?'Your code is ready':'Free microbe, sign up now';paint();
   if(!st.open){$('dlgGo').hidden=true;$('clNameRow').hidden=true;note(pre?(has?'Your code is saved to your wallet. Post on X, Like, Reply and Check open when the launch post is live.':'Connect and sign now to get your code. Post on X, Like, Reply and Check open when the launch post is live.'):'Opens at launch. Buttons switch on when the claim opens.');return;}
   if(st.soldOut&&!st.granted){$('clNameRow').hidden=true;$('dlgGo').hidden=true;note(`All ${st.max} free microbes have been claimed. You can still release one at today's price from the Intervene panel.`);return;}
   const ready=st.granted&&!st.used;$('clNameRow').hidden=!ready;$('dlgGo').hidden=!ready;
@@ -47,7 +47,7 @@ async function needWallet(){const p=window.__prim;if(!p)return false;if(p.wallet
 $('clCode').onclick=async()=>{if(!(await needWallet()))return;const w=window.__prim.wallet();const g=await (await fetch('/api/claim?wallet='+encodeURIComponent(w))).json();
   const pv=window.__wallets.current();if(!pv||!pv.signMessage){note('Your wallet cannot sign messages. Try Phantom or Solflare.');return;}
   try{const r=await pv.signMessage(new TextEncoder().encode(g.bindMsg),'utf8');const sg=r.signature||r;let b='';for(const x of sg)b+=String.fromCharCode(x);
-    await api('code&sig='+encodeURIComponent(btoa(b)));}catch(e){note('Signature cancelled. Nothing was sent.');}};
+    await api('code&sig='+encodeURIComponent(btoa(b)));if(st&&st.code&&st.wallet===w){signedNow.add(w);render();}}catch(e){note('Signature cancelled. Nothing was sent.');}};
 async function resetClaim(){
   for(const S of [localStorage,sessionStorage])for(const k of Object.keys(S))if(/^primordial\.(claim|wallet|sig|session|code)/.test(k))S.removeItem(k);
   st=null;$('clCodeOut').textContent='';$('freeName').value='';}

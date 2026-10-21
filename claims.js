@@ -25,7 +25,7 @@ const day=()=>new Date().toISOString().slice(0,10);
 const isOpen=()=>C.OPEN&&!!C.TWEET;
 const codesOpen=()=>C.OPEN; // partial open: wallet binding and codes before the launch post exists; X checks stay off until CAMPAIGN_TWEET_ID is set
 function status(cl,wallet){const g=cl.granted[wallet];
-  return {open:isOpen(),codesOpen:codesOpen(),max:C.MAX,claimed:cl.count,remaining:Math.max(0,C.MAX-cl.count),soldOut:cl.count>=C.MAX,tweet:C.TWEET||null,minAgeDays:C.MIN_AGE_DAYS,minFollowers:C.MIN_FOLLOWERS,handle:C.HANDLE||null,bindMsg:wallet?bindMsg(wallet):null,copy:C.COPY,replyCopy:C.REPLY,
+  return {wallet:wallet||null,open:isOpen(),codesOpen:codesOpen(),max:C.MAX,claimed:cl.count,remaining:Math.max(0,C.MAX-cl.count),soldOut:cl.count>=C.MAX,tweet:C.TWEET||null,minAgeDays:C.MIN_AGE_DAYS,minFollowers:C.MIN_FOLLOWERS,handle:C.HANDLE||null,bindMsg:wallet?bindMsg(wallet):null,copy:C.COPY,replyCopy:C.REPLY,
     code:wallet&&codesOpen()?cl.codes[wallet]||null:null,pending:!!(wallet&&cl.pending[wallet]),granted:!!g,used:!!(g&&g.used),releaseOpen:process.env.FREE_RELEASE_OPEN==='1',reservedName:g&&g.name||null,reason:wallet?cl.reasons[wallet]||null:null};}
 function issue(cl,wallet,sig){if(!codesOpen())throw new Error('Free microbe claim opens at launch.');
   if(!cl.codes[wallet]&&!verifySig(wallet,sig))throw new Error('Sign the message in your wallet to get your code.');
@@ -60,5 +60,6 @@ async function poll(cl,save){if(!isOpen())return;const now=Date.now();
   save();}
 function consume(cl,wallet){const g=cl.granted[wallet];if(!isOpen())throw new Error('Free microbe claim opens at launch. First 500 Solana wallets.');
   if(!g)throw new Error('Claim your free microbe first: share the campaign post on X with your code.');if(g.used)throw new Error('Your free microbe has already been released.');return g;}
+function lookup(cl,code){code=String(code||'').toUpperCase();const w=cl.byCode[code];if(!w)return null;const g=cl.granted[w];return {code,wallet:w,granted:!!g,used:!!(g&&g.used),grantedAt:g&&g.at||null,reservedName:g&&g.name||null};}
 function publicStats(cl){return {open:isOpen(),codesOpen:codesOpen(),max:C.MAX,claimed:cl.count,remaining:Math.max(0,C.MAX-cl.count),pending:Object.keys(cl.pending).length,calls:cl.calls,spendToday:+(cl.spend[day()]||0).toFixed(3)};}
-module.exports={releaseMsg,verifyMsg,C,bindMsg,verifySig,init,status,issue,check,poll,consume,publicStats,isOpen};
+module.exports={lookup,releaseMsg,verifyMsg,C,bindMsg,verifySig,init,status,issue,check,poll,consume,publicStats,isOpen};
