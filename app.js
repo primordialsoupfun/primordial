@@ -380,7 +380,7 @@ const LBL={food:'Food bloom',meteor:'Meteor strike',cold:'Cold front',toxic:'Tox
 function drawLog(){const ol=$('log');ol.innerHTML='';if(!ledger)return;
   for(const e of ledger.recent.slice().reverse()){const li=document.createElement('li');const b=document.createElement('b');b.textContent=String(e.at).padStart(6,'0');const s=document.createElement('span');
     s.textContent=LBL[e.type]+(e.name?' '+e.name:'')+(e.trait?' '+P.TREE[e.trait].label.toLowerCase():'')+(e.lamports?`  ${(e.lamports/1e9).toFixed(2)} SOL`:'')+(e.burned?`  burned ${e.burned}`:'')+'  '+short(e.owner);
-    const a=document.createElement('a');a.href=explorer(e.sig);a.target='_blank';a.textContent='tx';const x=document.createElement('a');x.href=share(evText(e),'/e/'+e.n);x.target='_blank';x.textContent='share';x.style.marginLeft='8px';
+    const a=document.createElement('a');a.href=e.sig?explorer(e.sig):'#';a.target='_blank';a.textContent=e.sig?'tx':'';const x=document.createElement('a');x.href=share(evText(e),'/e/'+e.n);x.target='_blank';x.textContent='share';x.style.marginLeft='8px';
     li.append(b,s,a,x);ol.append(li);}
   if(!ol.children.length)ol.innerHTML='<li><span class="muted">The log is empty. Seed '+CFG.seed+'.</span></li>';}
 const evText=e=>({release:`I released ${e.name} into the Primordial tank. Can it survive?`,trait:`My lineage just evolved ${e.trait?P.TREE[e.trait].label.toLowerCase():''} in the Primordial tank.`,meteor:'I just dropped a meteor on the Primordial tank.',food:'I fed the Primordial tank. Watch who gets there first.',cold:'A cold front is moving through the Primordial tank.',toxic:'A toxic bloom just opened in the Primordial tank.'}[e.type]||'Primordial');
@@ -394,7 +394,15 @@ const provider=()=>window.__wallets&&window.__wallets.current()||null;
 async function connectWallet(){window.__primCluster=CFG&&CFG.cluster;const pv=await window.__wallets.pick();if(!pv)return false;
   const r={publicKey:pv.publicKey};setTimeout(drawLines,50);wallet=(r&&r.publicKey||pv.publicKey).toString();$('who').textContent=short(wallet);$('connect').firstChild.textContent='Connected';drawSkill();window.dispatchEvent(new Event('prim-wallet-change'));return true;}
 $('connect').onclick=connectWallet;
-window.__prim={wallet:()=>wallet,clear:()=>{wallet=null;$('who').textContent='';$('connect').firstChild.textContent='Connect wallet';},disconnect:async()=>{await window.__wallets.disconnect();wallet=null;$('who').textContent='';$('connect').firstChild.textContent='Connect wallet';drawSkill();setTimeout(drawLines,50);},connect:connectWallet,releaseFree:n=>{const m=mark||bestVent();return buy(Object.assign({t:'release',name:n,free:1},m?{x:m[0],y:m[1]}:{}),0,0);},locate:id=>locate(id)};
+window.__prim={wallet:()=>wallet,clear:()=>{wallet=null;$('who').textContent='';$('connect').firstChild.textContent='Connect wallet';},disconnect:async()=>{await window.__wallets.disconnect();wallet=null;$('who').textContent='';$('connect').firstChild.textContent='Connect wallet';drawSkill();setTimeout(drawLines,50);},connect:connectWallet,releaseFree:n=>freeRelease(n),locate:id=>locate(id)};
+async function freeRelease(n){const pv=provider();if(!pv||!wallet){toast('Connect a wallet first.');return;}const m=mark||bestVent();
+  const body={wallet,name:n};if(m){body.x=m[0];body.y=m[1];}const post=()=>fetch('/api/free-release',{method:'POST',body:JSON.stringify(body)}).then(r=>r.json());
+  let r=await post();if(r.needSig){if(!pv.signMessage){toast('Your wallet cannot sign messages.');return;}toast('Sign the message in your wallet. No transaction, no fee.');
+    try{const s=await pv.signMessage(new TextEncoder().encode(r.msg),'utf8');const sg=s.signature||s;let b='';for(const x of sg)b+=String.fromCharCode(x);body.sig=btoa(b);}catch(e){toast('Signature cancelled. Your free microbe is still waiting.');return;}
+    r=await post();}
+  if(!r.ok){toast('Not released: '+r.error);return;}
+  if(r.reserved){toast(`Saved. ${r.name} is reserved and will be released when $SOUP launches.`);window.dispatchEvent(new Event('prim-wallet-change'));return;}
+  toast(`Released. It enters the dish at epoch ${r.event.at}, protected for 10 minutes. <a target="_blank" href="${share(evText(r.event),'/e/'+r.event.n)}">Share on X</a>`);loadLedger();}
 function toast(html){const t=$('toast');t.hidden=false;t.innerHTML=html;}
 async function buy(memo,lamports,burnTokens){const pv=provider();if(!pv||!wallet){toast('Connect a wallet first.');return;}
   const w3=window.solanaWeb3,conn=new w3.Connection(location.origin+CFG.rpc,'confirmed'),me=new w3.PublicKey(wallet),tx=new w3.Transaction();

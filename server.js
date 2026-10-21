@@ -98,7 +98,7 @@ async function verify(sig){
     const S=W.species[m.sp|0];if(!S||S.owner!==payer||S.root!==S.id)throw new Error('only the releaser can evolve this species');if(!W.eligible(S.id,m.trait))throw new Error('milestone not reached or branch locked');
     ev.sp=S.id;ev.trait=m.trait;ev.burned=burned;ledger.traitBurned+=burned;ledger.tokensBurned+=burned;}
   else if(m.t==='food'&&burned>=FOOD_BURN){ev.burned=burned;ledger.tokensBurned+=burned;}
-  else if(m.t==='release'&&m.free){const g=Claims.consume(claims,payer);const day=new Date().toISOString().slice(0,10);ledger.freeDay=ledger.freeDay||{};
+  else if(m.t==='release'&&m.free){if(process.env.FREE_RELEASE_OPEN!=='1')throw new Error('free release opens when $SOUP launches');const g=Claims.consume(claims,payer);const day=new Date().toISOString().slice(0,10);ledger.freeDay=ledger.freeDay||{};
     if((ledger.freeDay[day]||0)>=FREE_PER_DAY)throw new Error('free releases are full for today, try again tomorrow');
     const name=String(m.name||'').replace(/[^\w .'-]/g,'').trim().slice(0,24);if(!name)throw new Error('name required');ev.name=name;ev.free=true;ev.shield=Eco.E.SHIELD_S*HZ;g.used=true;ledger.freeDay={[day]:(ledger.freeDay[day]||0)+1};}
   else if(m.t==='release'){const name=String(m.name||'').replace(/[^\w .'-]/g,'').trim().slice(0,24);if(!name)throw new Error('name required');
@@ -156,6 +156,19 @@ http.createServer(async(req,res)=>{
     const now=Date.now();const r=rl.get(ip)||[];const recent=r.filter(t=>now-t<60000);if(recent.length>60)return json(res,{error:'rate limited'},429);recent.push(now);rl.set(ip,recent);
     if(!j||Array.isArray(j)||!ok.includes(j.method))return json(res,{error:'method not allowed'},403);
     const up=await fetch(C.RPC,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:j.id||1,method:j.method,params:j.params||[]})});res.writeHead(up.status,{'content-type':'application/json'});return res.end(await up.text());}
+  if(p==='/api/free-release'&&req.method==='POST'){let b='';for await(const ch of req)b+=ch;try{const q=JSON.parse(b);const w=String(q.wallet||'');new web3.PublicKey(w);
+      const name=String(q.name||'').replace(/[^\w .'-]/g,'').trim().slice(0,24);if(!name)throw new Error('name required');
+      const code=claims.codes[w];if(!code)throw new Error('Get your code first.');
+      if(!q.sig)return json(res,{ok:false,needSig:true,msg:Claims.releaseMsg(w,code,name)});
+      if(!Claims.verifyMsg(w,Claims.releaseMsg(w,code,name),q.sig))throw new Error('Signature did not match. Sign again in your wallet.');
+      const g=Claims.consume(claims,w);
+      if(process.env.FREE_RELEASE_OPEN!=='1'){g.name=name;g.namedAt=new Date().toISOString();save();return json(res,{ok:true,reserved:true,name});}
+      const day=new Date().toISOString().slice(0,10);ledger.freeDay=ledger.freeDay||{};
+      if((ledger.freeDay[day]||0)>=FREE_PER_DAY)throw new Error('free releases are full for today, try again tomorrow');
+      const num=v=>typeof v==='number'&&isFinite(v)?Math.max(20,Math.min(880,v)):undefined;
+      const ev={type:'release',owner:w,sig:null,name,free:true,shield:Eco.E.SHIELD_S*HZ};if(q.x!=null){ev.x=num(q.x);ev.y=num(q.y);}
+      g.used=true;g.usedAt=new Date().toISOString();ledger.freeDay={[day]:(ledger.freeDay[day]||0)+1};return json(res,{ok:true,event:schedule(ev)});}
+    catch(e){return json(res,{ok:false,error:e.message},400);}}
   if(p==='/api/submit'&&req.method==='POST'){let b='';for await(const ch of req)b+=ch;try{const ev=await verify(JSON.parse(b).sig);return json(res,{ok:true,event:ev});}catch(e){return json(res,{ok:false,error:e.message},400);}}
   let m;
   if((m=p.match(/^\/og\/(species|event|hall)\/(\d+)\.png$/))){const d=cardData(m[1],+m[2]);if(!d||!canvasMod){res.writeHead(200,{'content-type':'image/png'});return fs.createReadStream(__dirname+'/icons/og-fallback.png').pipe(res);}res.writeHead(200,{'content-type':'image/png','cache-control':'max-age=60'});return res.end(ogPng(d));}
