@@ -394,14 +394,14 @@ const provider=()=>window.__wallets&&window.__wallets.current()||null;
 async function connectWallet(){window.__primCluster=CFG&&CFG.cluster;const pv=await window.__wallets.pick();if(!pv)return false;
   const r={publicKey:pv.publicKey};setTimeout(drawLines,50);wallet=(r&&r.publicKey||pv.publicKey).toString();$('who').textContent=short(wallet);$('connect').firstChild.textContent='Connected';drawSkill();window.dispatchEvent(new Event('prim-wallet-change'));return true;}
 $('connect').onclick=connectWallet;
-window.__prim={wallet:()=>wallet,clear:()=>{wallet=null;$('who').textContent='';$('connect').firstChild.textContent='Connect wallet';},disconnect:async()=>{await window.__wallets.disconnect();wallet=null;$('who').textContent='';$('connect').firstChild.textContent='Connect wallet';drawSkill();setTimeout(drawLines,50);},connect:connectWallet,releaseFree:n=>freeRelease(n),locate:id=>locate(id)};
-async function freeRelease(n){const pv=provider();if(!pv||!wallet){toast('Connect a wallet first.');return;}const m=mark||bestVent();
-  const body={wallet,name:n};if(m){body.x=m[0];body.y=m[1];}const post=()=>fetch('/api/free-release',{method:'POST',body:JSON.stringify(body)}).then(r=>r.json());
-  let r=await post();if(r.needSig){if(!pv.signMessage){toast('Your wallet cannot sign messages.');return;}toast('Sign the message in your wallet. No transaction, no fee.');
-    try{const s=await pv.signMessage(new TextEncoder().encode(r.msg),'utf8');const sg=s.signature||s;let b='';for(const x of sg)b+=String.fromCharCode(x);body.sig=btoa(b);}catch(e){toast('Signature cancelled. Your free microbe is still waiting.');return;}
-    r=await post();}
-  if(!r.ok){toast('Not released: '+r.error);return;}
-  if(r.reserved){toast(`Saved. ${r.name} is reserved and will be released when $SOUP launches.`);window.dispatchEvent(new Event('prim-wallet-change'));return;}
+window.__prim={wallet:()=>wallet,clear:()=>{wallet=null;$('who').textContent='';$('connect').firstChild.textContent='Connect wallet';},disconnect:async()=>{await window.__wallets.disconnect();wallet=null;$('who').textContent='';$('connect').firstChild.textContent='Connect wallet';drawSkill();setTimeout(drawLines,50);},connect:connectWallet,releaseFree:(n,s)=>freeRelease(n,s),locate:id=>locate(id)};
+async function freeRelease(n,saveOnly){const pv=provider();if(!pv||!wallet){toast('Connect a wallet first.');return;}const m=mark||bestVent();
+  const body={wallet,name:n,saveOnly:!!saveOnly};if(m){body.x=m[0];body.y=m[1];}const post=()=>fetch('/api/free-release',{method:'POST',body:JSON.stringify(body)}).then(r=>r.json());
+  let r;try{r=await post();}catch(e){return {ok:false,error:'Network error. Try again.'};}if(r.needSig){if(!pv.signMessage){toast('Your wallet cannot sign messages.');return {ok:false,error:'Your wallet cannot sign messages.'};}toast('Sign the message in your wallet. No transaction, no fee.');
+    try{const s=await pv.signMessage(new TextEncoder().encode(r.msg),'utf8');const sg=s.signature||s;let b='';for(const x of sg)b+=String.fromCharCode(x);body.sig=btoa(b);}catch(e){toast('Signature cancelled. Your free microbe is still waiting.');return {ok:false,error:'Signature cancelled. Nothing was saved.'};}
+    try{r=await post();}catch(e){return {ok:false,error:'Network error. Try again.'};}}
+  if(!r.ok){if(!body.sig||!r.error)toast('Not released: '+r.error);return r;}
+  if(r.reserved)return r;
   toast(`Released. It enters the dish at epoch ${r.event.at}, protected for 10 minutes. <a target="_blank" href="${share(evText(r.event),'/e/'+r.event.n)}">Share on X</a>`);loadLedger();}
 function toast(html){const t=$('toast');t.hidden=false;t.innerHTML=html;}
 async function buy(memo,lamports,burnTokens){const pv=provider();if(!pv||!wallet){toast('Connect a wallet first.');return;}

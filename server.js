@@ -135,6 +135,16 @@ let _idx=null;function indexHtml(){if(!_idx||!process.env.RENDER_GIT_COMMIT)_idx
 const short=a=>a&&a.length>12?a.slice(0,4)+'...'+a.slice(-4):a||'unknown';
 let canvasMod=null;try{canvasMod=require('@napi-rs/canvas');}catch(e){}
 function ogPng(d){const c=canvasMod.createCanvas(1200,630);Card.card(c.getContext('2d'),d,Org,{serif:'serif',mono:'monospace'});return c.toBuffer('image/png');}
+const cardCache=new Map();
+function claimCardData(code){const r=Claims.lookup(claims,code);if(!r)return null;const w=r.wallet,g=claims.granted[w];const name=(g&&g.name)||claims.names[w]||'Unnamed microbe';
+  const no=g?Object.values(claims.granted).filter(x=>x.at<=g.at).length:null;const sps=Object.values(W.species||{}).filter(x=>x&&x.root===x.id);let h=0;for(const ch of code)h=(h*31+ch.charCodeAt(0))>>>0;const sp=sps.length?sps[h%sps.length]:null;
+  return {kicker:'Free microbe, first 500 Solana wallets',title:name,subtitle:`Bound to wallet ${w.slice(0,4)}...${w.slice(-4)}. ${g?'Reserved.':'Claim pending.'} Releases into the Soup when $SOUP launches.`,
+    sp,root:sp&&W.species[sp.root],tick:W.tick,stats:[['Code',code],['Claim',no?`#${no} of 500`:'Pending'],['Status',g?'Reserved':'Pending']],footer:'The first shared petri dish.',plate:'I'};}
+function claimPage(res,code){const d=claimCardData(code);if(!d){res.writeHead(404);return res.end('not found');}const base=PUBLIC_URL,img=`${base}/og/c/${code}.png?v=${encodeURIComponent(d.title+d.stats[2][1]).slice(0,40)}`,title=`${d.title} | Primordial`,desc='A free microbe in the Soup, the first shared petri dish on Solana. First 500 wallets.';
+  res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'public, max-age=60'});
+  res.end(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:image" content="${img}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:url" content="${base}/c/${code}"><meta property="og:site_name" content="Primordial">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${esc(title)}"><meta name="twitter:description" content="${esc(desc)}"><meta name="twitter:image" content="${img}"><meta name="twitter:site" content="@primordialfun">
+<meta http-equiv="refresh" content="0; url=/claim"></head><body><a href="/claim">Claim your free microbe</a></body></html>`);}
 function sharePage(res,kind,id,host){const d=cardData(kind,id);if(!d){res.writeHead(404);return res.end('not found');}
   const base=PUBLIC_URL,img=`${base}/og/${kind}/${id}.png`,title=`${d.title} | Primordial`,desc=d.subtitle,target=kind==='species'?`/?sp=${id}`:kind==='event'?`/?ev=${id}`:'/?hall=1';
   res.writeHead(200,{'content-type':'text/html; charset=utf-8'});
@@ -164,8 +174,9 @@ http.createServer(async(req,res)=>{
       const code=claims.codes[w];if(!code)throw new Error('Get your code first.');
       if(!q.sig)return json(res,{ok:false,needSig:true,msg:Claims.releaseMsg(w,code,name)});
       if(!Claims.verifyMsg(w,Claims.releaseMsg(w,code,name),q.sig))throw new Error('Signature did not match. Sign again in your wallet.');
+      const g0=claims.granted[w];
+      if(process.env.FREE_RELEASE_OPEN!=='1'||!g0||g0.used||q.saveOnly){if(g0&&g0.used&&!q.saveOnly)throw new Error('Your free microbe has already been released.');claims.names[w]=name;if(g0){g0.name=name;g0.namedAt=new Date().toISOString();}cardCache.delete(code);save();return json(res,{ok:true,reserved:true,name,granted:!!g0});}
       const g=Claims.consume(claims,w);
-      if(process.env.FREE_RELEASE_OPEN!=='1'){g.name=name;g.namedAt=new Date().toISOString();save();return json(res,{ok:true,reserved:true,name});}
       const day=new Date().toISOString().slice(0,10);ledger.freeDay=ledger.freeDay||{};
       if((ledger.freeDay[day]||0)>=FREE_PER_DAY)throw new Error('free releases are full for today, try again tomorrow');
       const num=v=>typeof v==='number'&&isFinite(v)?Math.max(20,Math.min(880,v)):undefined;
@@ -174,6 +185,10 @@ http.createServer(async(req,res)=>{
     catch(e){return json(res,{ok:false,error:e.message},400);}}
   if(p==='/api/submit'&&req.method==='POST'){let b='';for await(const ch of req)b+=ch;try{const ev=await verify(JSON.parse(b).sig);return json(res,{ok:true,event:ev});}catch(e){return json(res,{ok:false,error:e.message},400);}}
   let m;
+  if((m=p.match(/^\/c\/(SOUP[0-9A-F]{6})$/i)))return claimPage(res,m[1].toUpperCase());
+  if((m=p.match(/^\/og\/c\/(SOUP[0-9A-F]{6})\.png$/i))){const code=m[1].toUpperCase();const d=claimCardData(code);if(!d||!canvasMod){res.writeHead(d?200:404,{'content-type':'image/png'});return d?fs.createReadStream(__dirname+'/icons/og-claim.png').pipe(res):res.end();}
+    const key=code+'|'+d.title+'|'+d.stats[2][1];let buf=cardCache.get(code);if(!buf||buf.key!==key){buf={key,png:ogPng(d)};cardCache.set(code,buf);if(cardCache.size>2000)cardCache.delete(cardCache.keys().next().value);}
+    res.writeHead(200,{'content-type':'image/png','content-length':buf.png.length,'cache-control':'public, max-age=300'});return res.end(buf.png);}
   if((m=p.match(/^\/og\/(species|event|hall)\/(\d+)\.png$/))){const d=cardData(m[1],+m[2]);if(!d||!canvasMod){res.writeHead(200,{'content-type':'image/png'});return fs.createReadStream(__dirname+'/icons/og-fallback.png').pipe(res);}res.writeHead(200,{'content-type':'image/png','cache-control':'max-age=60'});return res.end(ogPng(d));}
   if((m=p.match(/^\/(s|e|h)\/(\d+)$/)))return sharePage(res,{s:'species',e:'event',h:'hall'}[m[1]],+m[2],req.headers.host);
   let f=p==='/'?'/index.html':p==='/how'?'/how.html':p==='/whitepaper'?'/whitepaper.html':p;if(f.startsWith('/vendor/web3.js'))f='/node_modules/@solana/web3.js/lib/index.iife.min.js';
