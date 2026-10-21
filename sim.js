@@ -3,7 +3,7 @@
 (function(g){
 'use strict';
 const R=430,CX=450,CY=450,NI=9,NH=7,NO=3,GLEN=NI*NH+NH+NH*NO+NO,MAXPOP=1100,CELL=24,GW=Math.ceil(900/CELL);
-const V4FADE=648000; // v4: a released lineage starts at half metabolic cost, back to normal over 6 h
+const V5CAP=100,V4FADE=648000; // v4: a released lineage starts at half metabolic cost, back to normal over 6 h
 const CFG={epochTicks:3000,prizeShare:0.2,split:[0.5,0.3,0.2]};
 class RNG{constructor(s){this.a=s>>>0;}next(){this.a=(this.a+0x6D2B79F5)>>>0;let t=this.a;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296;}}
 const act=x=>x/(1+Math.abs(x));
@@ -52,6 +52,7 @@ class World{
   }
   // v3 rules switch on at cfg.v3From, a fixed tick recorded by the server, so earlier history replays unchanged.
   v3(){const f=this.cfg.v3From;return f!=null&&this.tick>=f;}
+  v5(){const f=this.cfg.v5bFrom;return f!=null&&this.tick>=f;}
   v4(){const f=this.cfg.v4From;return f!=null&&this.tick>=f;}
   // A release starts from a proven brain: a mutated copy of a creature from the most populous living species.
   provenGenome(){let best=null;for(const s of this.species)if(s.count>0&&(!best||s.count>best.count))best=s;if(!best)return this.randGenome();
@@ -105,6 +106,8 @@ class World{
     const eaten=new Uint8Array(this.food.length),dead=new Uint8Array(this.c.length);
     this.toxic=this.toxic.filter(t=>t.until>this.tick);
     const born=[];const v4sh=this.v4();
+    // v5: the head start applies only while the released lineage has fewer than V5CAP creatures (stops one release taking over the dish)
+    let LC=null;if(v4sh&&this.v5()){LC=new Map();for(const k of this.c){const ro=this.species[k.sp].root;LC.set(ro,(LC.get(ro)||0)+1);}}
     for(let ci=0;ci<this.c.length;ci++){const k=this.c[ci];if(dead[ci])continue;const T=this.species[k.sp].traits,h=t=>T.indexOf(t)>=0;
       const sr=h('sense1')?(h('sense2')?24:19):14,reach=h('sense2')?22:16;
       const lx=k.x+(k.dx*reach-k.dy*10),ly=k.y+(k.dy*reach+k.dx*10),rx=k.x+(k.dx*reach+k.dy*10),ry=k.y+(k.dy*reach-k.dx*10);
@@ -125,7 +128,7 @@ class World{
       const base=.0016*(h('meta1')?.8:1)*(h('armor2')?1.15:1),move=thrust*.0022*(h('loco1')?1.1:1)*(h('meta2')?.9:1);
       const shd=(cold||tox)&&this.shielded(k),coldC=shd?0:cold*.0024*(h('res1')?.4:1),toxC=shd?0:tox*.009*(h('res2')?.35:1);
       let symb=0;if(h('symb'))symb=Math.min(.0008,(nl+nr)*.00015);
-      let starve=1;if(v4sh){const RS=this.species[this.species[k.sp].root];if(RS.bornTick!=null){const a=this.tick-RS.bornTick;if(a<V4FADE)starve=.5+.5*a/V4FADE;}}
+      let starve=1;if(v4sh){const RS=this.species[this.species[k.sp].root];if(RS.bornTick!=null){const a=this.tick-RS.bornTick;if(a<V4FADE&&(!LC||LC.get(RS.id)<V5CAP))starve=.5+.5*a/V4FADE;}}
       k.e-=(base+move)*starve+coldC+toxC-symb;
       const gain=h('pred')?.75:1; // predators digest algae less well
       this.sense(FG,this.food,k.x,k.y,5,(f,i)=>{if(!eaten[i]){eaten[i]=1;k.e+=f.v*gain;}return 0;});

@@ -6,12 +6,14 @@
 const E={
   HZ:+process.env.TICK_HZ||30,
   HOUR_TICKS:+process.env.HOUR_TICKS||108000, SEASON_HOURS:+process.env.SEASON_HOURS||24,
-  PAYOUT_PER_DAY:0.5, YIELD_SHARE:0.85,WEIGHT_POW:0.6, SPLIT:[0.5,0.3,0.2], BONUS_MIN_AGE_H:2,
+  PAYOUT_PER_DAY:0.5, YIELD_SHARE:0.85,WEIGHT_POW:0.6,WEIGHT_POW_V5:1.0,TARGET_ROI_V5:1.0, SPLIT:[0.5,0.3,0.2], BONUS_MIN_AGE_H:2,
   INTERV_TO_POOL:0.4, CREATOR_TO_POOL:0.7, TARGET_ROI:1.2, P_MIN:1, P_MAX:25, P_START:+process.env.P_START||5,
   FREE_WEIGHT:0.25, FREE_CAP:0.10, WALLET_CAP:0.10, MAX_PAID_PER_WALLET_DAY:10, FREE_MIN_USD:5, FREE_MIN_AGE_DAYS:7,
   SOL_USD:+process.env.SOL_USD||150, SHIELD_S:600,ZONE_BONUS:0.05,ZONE_MAX:3, COOLDOWN_S:{meteor:300,cold:180,toxic:180},
 };
 E.SOUP_USD=E.SOL_USD/(+process.env.MOCK_RATE||100000);
+// v5 economy (from the same fixed tick as the sim v5 rule): weight exponent 1.0, release price target 1.0x
+function v5(eco){return eco.v5bFrom!=null&&eco.lastTick>=eco.v5bFrom;}
 function init(ledger){
   ledger.eco=ledger.eco||{price:E.P_START,yAvg:null,hour:{},season:{},born:{},free:{},owner:{},earned:{},cost:{},owed:{},bonusPot:0,
     day:{paidCost:0,paidPayout:0,paidN:0,walletPaid:{},walletEarned:{}},hours:[],seasons:[],sent:[],lastAt:{}};
@@ -29,7 +31,7 @@ function accrue(eco,W){const cnt=new Map();for(const k of W.c){const ro=W.specie
     const z=W.zonesOf?Math.min(E.ZONE_MAX,W.zonesOf(+r)):0;eco.hz[r]=(eco.hz[r]||0)+z;eco.hs[r]=(eco.hs[r]||0)+1;}}
 const zoneMult=(eco,r)=>1+E.ZONE_BONUS*((eco.hz&&eco.hs&&eco.hs[r])?eco.hz[r]/eco.hs[r]:0);
 // weight = creature-seconds to the power 0.6: diminishing returns (tuned in econ/REPORT.md)
-function weights(eco){const ent=[];let paid=0,free=0;for(const r in eco.hour){const w=Math.pow(eco.hour[r],E.WEIGHT_POW)*zoneMult(eco,r);if(eco.free[r]){free+=w*E.FREE_WEIGHT;ent.push([r,w*E.FREE_WEIGHT,1]);}else{paid+=w;ent.push([r,w,0]);}}
+function weights(eco){const ent=[];let paid=0,free=0;for(const r in eco.hour){const w=Math.pow(eco.hour[r],v5(eco)?E.WEIGHT_POW_V5:E.WEIGHT_POW)*zoneMult(eco,r);if(eco.free[r]){free+=w*E.FREE_WEIGHT;ent.push([r,w*E.FREE_WEIGHT,1]);}else{paid+=w;ent.push([r,w,0]);}}
   let fs=1;if(free>0&&free/(paid+free)>E.FREE_CAP)fs=paid>0?(E.FREE_CAP*paid/(1-E.FREE_CAP))/free:1;
   const out=ent.map(([r,w,f])=>[r,f?w*fs:w]);const tot=out.reduce((a,b)=>a+b[1],0);return {out,tot};}
 function closeHour(eco,ledger,tick){
@@ -52,7 +54,7 @@ function closeSeason(eco,ledger,tick,W){
     if(!eco.free[r])eco.day.paidPayout+=lam/1e9*E.SOL_USD;wins.push({place:i+1,sp:+r,name:(W.species[r]||{}).name,owner:o,lamports:lam,cs:eco.season[r]});});
   // daily price: yesterday's payout per paid release divided by the target return, clamped
   const d=eco.day;if(d.paidCost>0)eco.yAvg=d.paidPayout/d.paidCost;
-  if(d.paidN>0)eco.price=Math.min(E.P_MAX,Math.max(E.P_MIN,d.paidPayout/d.paidN/E.TARGET_ROI));
+  if(d.paidN>0)eco.price=Math.min(E.P_MAX,Math.max(E.P_MIN,d.paidPayout/d.paidN/(v5(eco)?E.TARGET_ROI_V5:E.TARGET_ROI)));
   eco.seasons.push({tick,wins,price:eco.price,yAvg:eco.yAvg,paidN:d.paidN});if(eco.seasons.length>30)eco.seasons.shift();
   eco.day={paidCost:0,paidPayout:0,paidN:0,walletPaid:{},walletEarned:{}};eco.season={};eco.freeDay={};
   for(const r of Object.keys(eco.owner))if(!W.species[r]||W.lineageStats(+r).alive===0){if(tick-eco.born[r]>E.HOUR_TICKS){delete eco.owner[r];delete eco.free[r];delete eco.born[r];}}

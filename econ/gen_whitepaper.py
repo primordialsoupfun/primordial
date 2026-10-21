@@ -76,7 +76,7 @@ svg text{{font-family:"Iowan Old Style",Palatino,Georgia,serif}}
 <p>Every second, each released lineage is credited with its number of living creatures (creature-seconds). At the end of each hour:</p>
 <div class="formula">hour budget      B = pool balance x {P['payout_rate']} / 24
 yield            Y = {P['yield_share']} x B        bonus pot += {round(1-P['yield_share'],2)} x B
-lineage weight   w = (creature-seconds this hour) ^ 0.6 x (1 + 0.05 x zones held, at most 3)
+lineage weight   w = (creature-seconds this hour) ^ 1.0 (0.6 before the v5 rule) x (1 + 0.05 x zones held, at most 3)
                      x 0.25 if the release was free (all free releases together at most {int(P['free_cap']*100)}% of Y)
 lineage payout     = Y x w / sum of all w            (no wallet above {int(P['wallet_cap']*100)}% of a day's yield)</div>
 <p>Once a day the bonus pot is paid 50, 30 and 20 percent to the three lineages with the most creature-seconds that day. A lineage must be at least 2 hours old to qualify, and territory does not count for the bonus. Then tomorrow's release price is set:</p>
@@ -87,7 +87,7 @@ lineage payout     = Y x w / sum of all w            (no wallet above {int(P['wa
 <ul>
 <li>One free microbe per wallet and per X account, for the first 500 wallets, verified through a public post that contains a code tied to the wallet. The server batches all pending codes into one X search per minute and has a daily API spend cap.</li>
 <li>At most 10 paid releases per wallet per day. No wallet earns more than 10 percent of a day's yield.</li>
-<li>New releases ignore disasters for 10 minutes and burn energy at half rate, back to normal over 6 hours. Meteors have a 5 minute cooldown; cold fronts and toxic blooms 3 minutes.</li>
+<li>New releases ignore disasters for 10 minutes and burn energy at half rate while the lineage has fewer than 100 creatures, back to normal over 6 hours. Meteors have a 5 minute cooldown; cold fronts and toxic blooms 3 minutes.</li>
 <li>The daily bonus uses the whole day's creature-seconds and a 2 hour minimum age, so a last-minute release cannot snipe it.</li>
 <li>In simulation, even 1000 free lineages a day took about $32 a day under the 10 percent free cap and left honest returns unchanged; without the cap they took $268 a day. The X share requirement makes that many free claims impractical. A whale releasing 50 times more than everyone else got back about 0.4x.</li>
 </ul>
@@ -111,6 +111,8 @@ lineage payout     = Y x w / sum of all w            (no wallet above {int(P['wa
 {tr('Players who came out ahead',str(int(round(s['players_profit'])))+'%')}{tr('Casual, Recommended start, skilled',f"{f(s['casual'])}x, {f(s['starter'])}x, {f(s['skilled'])}x")}</table>
 <h3>Survival update (v4 rule)</h3>
 <p>Released lineages used to die out within about 20 minutes, while the pool pays hourly. From a fixed tick recorded in the ledger, a newly released lineage starts at half the normal energy cost, rising evenly back to normal over 6 hours. Measured on a copy of the live dish with a release every 11 minutes: median lineage life about 1.2 to 1.5 hours, the unluckiest 1 in 10 gone within 8 to 35 minutes, the luckiest 1 in 10 past 1.7 to 3.4 hours. Rerunning the medium game with these lineages: average 1.21x, median 0.99x, luckiest 1 in 10 at 2.00x or above, about 50% of players ahead. The other half still lose. Sample: 14 measured lineages, so treat these as early numbers.</p>
+<h3>Balance update (v5 rule)</h3>
+<p>From a second fixed tick recorded in the ledger: the half-cost head start only applies while a released lineage has fewer than 100 creatures, so one release can no longer take over the dish (in tests a single early release had grown to about 97% of the dish in 5 minutes; with the cap it holds near 100). The hourly weight becomes creature-seconds to the power 1.0 instead of 0.6, and the daily release price targets an average return of 1.0x instead of 1.2x. Measured on 227 lineages from 16 runs on a copy of the live dish: median lineage life about 2 h 20 min, the unluckiest 1 in 10 gone within about 5 minutes, the luckiest 1 in 10 past about 3 h 15 min. Medium game: average 1.0x, median 0.88x, luckiest 1 in 10 at 1.26x or above, about 32% of players ahead. Most players lose a little; a third come out ahead.</p>
 <h3>Creator fee sensitivity</h3>
 <p>pump.fun's fee page (last updated 17 October 2026) lists a 0.300% creator fee on the bonding curve, 0.950% just after graduation, falling in steps to 0.050% at the largest market caps. Capacity is the number of paid releases per day the pool supports at the $1 floor. Interventions use the price mix below.</p>
 <table><tr><th>Creator fee</th><th>Volume per day</th><th>Pool inflow per day</th><th>Capacity</th><th>Avg return</th><th>Median</th><th>Price</th></tr>{fee_rows}</table>

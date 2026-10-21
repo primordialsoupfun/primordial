@@ -75,7 +75,7 @@ Implemented in `economy.js`, server side only. The deterministic sim only adds t
 
 **Payouts**
 - Half the pool is paid each day, in 24 hourly slices.
-- **Hourly yield (85%).** Weight per released root lineage = (creature-seconds this hour)^0.6 x (1 + 0.05 x average zones held, at most 3) x 0.25 if the release was free.
+- **Hourly yield (85%).** Weight per released root lineage = (creature-seconds this hour)^1.0 (0.6 before v5) x (1 + 0.05 x average zones held, at most 3) x 0.25 if the release was free.
   - All free releases together are capped at 10% of the yield.
   - No wallet gets more than max(10%, 1/number of wallets) of a day's yield. Any excess returns to the pool.
 - **Daily bonus (15%).** Paid 50/30/20 to the top three lineages by season creature-seconds, with free releases weighted 0.25 and a minimum age of 2 hours. Territory does not count toward the bonus.
@@ -94,6 +94,7 @@ Implemented in `economy.js`, server side only. The deterministic sim only adds t
   - Daily spend cap `X_DAILY_SPEND_USD` (default 2). Estimated cost: one post read plus one user read per claim, $0.005 plus $0.010 at X pay-per-use rates, so about $1.50 per 100 claims, or $0.50 if user expansions are not billed separately. Likes are encouraged but never verified.
   - Same 1/4 weight and 10% free cap as before.
 - At most 10 paid releases per wallet per day.
+- v5 rule (cfg.v5bFrom, later fixed tick; cfg.v5From in the ledger is an inert placeholder recorded before the code shipped): head start only while the lineage has fewer than 100 creatures (V5CAP); economy WEIGHT_POW 1.0 and TARGET_ROI 1.0 from the same tick.
 - v4 rule (cfg.v4From, fixed future tick in the ledger): a released lineage pays half metabolic cost, rising linearly to normal over 6 h (V4FADE=648000 ticks). Median lineage life went from about 5 min to 1.2-1.5 h with wide spread; see econ/SURVIVAL_NOTES.md.
 - Released lineages are shielded from disasters for 10 minutes. This is done via `ev.shield`, so older logs replay unchanged.
 - Cooldowns: meteor 300 s; cold front and toxic bloom 180 s each.
@@ -104,10 +105,10 @@ Implemented in `economy.js`, server side only. The deterministic sim only adds t
 | --- | --- |
 | `PAYOUT_PER_DAY` | 0.5 |
 | `YIELD_SHARE` | 0.85 |
-| `WEIGHT_POW` | 0.6 |
+| `WEIGHT_POW` | 0.6 (1.0 from v5) |
 | `ZONE_BONUS` | 0.05 |
 | `ZONE_MAX` | 3 |
-| `TARGET_ROI` | 1.2 |
+| `TARGET_ROI` | 1.2 (1.0 from v5) |
 | `P_MIN` / `P_MAX` | 1 / 25 |
 | `FREE_WEIGHT` | 0.25 |
 | `FREE_CAP` | 0.10 |
@@ -117,7 +118,7 @@ Implemented in `economy.js`, server side only. The deterministic sim only adds t
 `HOUR_TICKS` and `SEASON_HOURS` are env-configurable for tests.
 
 **Simulated results.** Medium game, see the whitepaper for the assumptions:
-- Average return about 1.2x. The typical player is below 1x, and about a third of players come out ahead.
+- From v5: average return about 1.0x, median about 0.88x, about 32% of players come out ahead (econ/SURVIVAL_NOTES.md).
 - Skilled players clearly beat casual players. Recommended start narrows the gap.
 - With players who react to yesterday's return, the price drifts to the $1 floor and returns drift toward 1.0x once demand exceeds capacity.
 - Launch week needs a bootstrap. Proposed: seed the pool with $300 and send 100% of creator fees to the pool for 7 days. Not yet decided.

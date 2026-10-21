@@ -5,7 +5,7 @@ if(process.env.V4T)globalThis.__V4T=JSON.parse(process.env.V4T);const P=require(
 const [file,mode,T,seed,sf,chunk]=[process.argv[2],process.argv[3],+process.argv[4],+process.argv[5]||1,process.argv[6],+process.argv[7]||30000];
 let w,st;
 if(fs.existsSync(sf)){const o=JSON.parse(fs.readFileSync(sf));w=P.World.fromJSON(o.w);st=o.st;}
-else{const snap=JSON.parse(fs.readFileSync(file));w=P.World.fromJSON(snap.state);w.cfg.v4From=w.tick+1;st={t:0,rs:seed*7919+1,rel:[],start:w.tick};}
+else{const snap=JSON.parse(fs.readFileSync(file));w=P.World.fromJSON(snap.state);w.cfg.v4From=w.tick+1;if(process.env.V5)w.cfg.v5bFrom=w.tick+1;st={t:0,rs:seed*7919+1,rel:[],start:w.tick};}
 const rnd=()=>((st.rs=(st.rs*1103515245+12345)>>>0)/4294967296);const rel=st.rel;
 const stop=Math.min(T,st.t+chunk);
 for(;st.t<stop;st.t++){const t=st.t;

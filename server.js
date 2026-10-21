@@ -45,7 +45,8 @@ if(ledger.cfg.v3From==null){ledger.cfg.v3From=Math.max(ledger.cfg.pvp2From,Math.
 // v4 rule (released lineages start at half metabolic cost, back to normal over 6 h) from a fixed future tick.
 if(ledger.cfg.v4From==null){ledger.cfg.v4From=Math.max(ledger.cfg.v3From,Math.ceil((W.tick+LEAD+900)/150)*150);save();}W.cfg.v4From=ledger.cfg.v4From;
 // v5 rule (head start only below 100 creatures; economy exponent 1.0 and price target 1.0x) from a fixed future tick.
-if(ledger.cfg.v5From==null){ledger.cfg.v5From=Math.max(ledger.cfg.v4From,Math.ceil((W.tick+LEAD+900)/150)*150);save();}W.cfg.v5From=ledger.cfg.v5From;eco.v5From=ledger.cfg.v5From;
+// cfg.v5From was recorded by an earlier deploy before the v5 code shipped and is inert; the v5 rule uses v5bFrom.
+if(ledger.cfg.v5bFrom==null){ledger.cfg.v5bFrom=Math.max(ledger.cfg.v5From||ledger.cfg.v4From,Math.ceil((W.tick+LEAD+900)/150)*150);save();}W.cfg.v5bFrom=ledger.cfg.v5bFrom;eco.v5bFrom=ledger.cfg.v5bFrom;
 snapshot={tick:W.tick,state:JSON.stringify(W)};
 
 // SSE
