@@ -10,7 +10,7 @@ let i=0;
 function show(){$('gstep').textContent=`Step ${i+1} of 3`;$('gtitle').textContent=steps[i][0];$('gbody').textContent=steps[i][1];$('gnext').firstChild.textContent=i===2?'Start':'Next';}
 function close(){$('guide').hidden=true;localStorage.setItem(GK,'done');}
 $('gnext').onclick=()=>{if(i<2){i++;show();}else close();};$('gskip').onclick=close;
-if(localStorage.getItem(GK)!=='done'&&!new URLSearchParams(location.search).get('noguide')){show();$('guide').hidden=false;}
+if(localStorage.getItem(GK)!=='done'&&location.pathname!=='/claim'&&!new URLSearchParams(location.search).get('noguide')){show();$('guide').hidden=false;}
 // free microbe claim dialog. Steps: sign for code, follow, name, share card on X, automatic check by the server.
 const dlg=$('releaseDlg');let st=null,editing=false,pollT=null;const signedNow=new Set();
 const note=t=>{$('dlgNote').textContent=t||'';};

@@ -26,7 +26,7 @@ const isOpen=()=>C.OPEN&&!!C.TWEET;
 const codesOpen=()=>C.OPEN; // partial open: wallet binding and codes before the launch post exists; X checks stay off until CAMPAIGN_TWEET_ID is set
 function status(cl,wallet){const g=cl.granted[wallet];
   return {wallet:wallet||null,open:isOpen(),codesOpen:codesOpen(),max:C.MAX,claimed:cl.count,remaining:Math.max(0,C.MAX-cl.count),soldOut:cl.count>=C.MAX,tweet:C.TWEET||null,minAgeDays:C.MIN_AGE_DAYS,minFollowers:C.MIN_FOLLOWERS,handle:C.HANDLE||null,bindMsg:wallet?bindMsg(wallet):null,copy:C.COPY,replyCopy:C.REPLY,
-    code:wallet&&codesOpen()?cl.codes[wallet]||null:null,pending:!!(wallet&&cl.pending[wallet]),granted:!!g,used:!!(g&&g.used),releaseOpen:process.env.FREE_RELEASE_OPEN==='1',reservedName:(g&&g.name)||cl.names[wallet]||null,claimNo:g?Object.values(cl.granted).filter(x=>x.at<=g.at).length:null,cardUrl:wallet&&cl.codes[wallet]?'/c/'+cl.codes[wallet]:null,lastPoll:cl.lastPoll||null,pendingSince:wallet&&cl.pending[wallet]||null,reason:wallet?cl.reasons[wallet]||null:null};}
+    code:wallet&&codesOpen()?cl.codes[wallet]||null:null,pending:!!(wallet&&cl.pending[wallet]),granted:!!g,used:!!(g&&g.used),releaseOpen:process.env.FREE_RELEASE_OPEN==='1',reservedName:(g&&g.name)||cl.names[wallet]||null,claimNo:g?Object.values(cl.granted).filter(x=>x.at<=g.at).length:null,cardUrl:wallet&&cl.codes[wallet]?'/c/'+cl.codes[wallet]:null,lastPoll:(wallet&&cl.lastTry&&cl.lastTry[wallet])||null,pendingSince:wallet&&cl.pending[wallet]||null,reason:wallet?cl.reasons[wallet]||null:null};}
 function issue(cl,wallet,sig){if(!codesOpen())throw new Error('Free microbe claim opens at launch.');
   if(!cl.codes[wallet]&&!verifySig(wallet,sig))throw new Error('Sign the message in your wallet to get your code.');
   if(cl.granted[wallet])return cl.codes[wallet];if(cl.count>=C.MAX)throw new Error('All free microbes have been claimed.');
@@ -40,9 +40,9 @@ async function search(query){
   const r=await fetch(u,{headers:{authorization:'Bearer '+process.env.X_BEARER_TOKEN}});if(!r.ok)throw new Error('X search failed with status '+r.status);return r.json();}
 async function poll(cl,save){if(!isOpen())return;const now=Date.now();
   for(const w of Object.keys(cl.pending))if(now-cl.pending[w]>C.PENDING_H*3600e3){delete cl.pending[w];cl.reasons[w]='We could not find your post within 24 hours. Post it, then press Check again.';}
-  const waiting=Object.keys(cl.pending).slice(0,C.BATCH);if(!waiting.length)return;
+  cl.lastTry=cl.lastTry||{};const waiting=Object.keys(cl.pending).sort((a,b)=>(cl.lastTry[a]||0)-(cl.lastTry[b]||0)).slice(0,C.BATCH);if(!waiting.length)return;
   const d=day();if((cl.spend[d]||0)>=C.DAILY_USD)return; // daily cap: pending claims wait for tomorrow
-  cl.lastPoll=Date.now();const codes=waiting.map(w=>cl.codes[w]);
+  cl.lastPoll=Date.now();for(const w of waiting)cl.lastTry[w]=cl.lastPoll;for(const w of Object.keys(cl.lastTry))if(!cl.pending[w])delete cl.lastTry[w];const codes=waiting.map(w=>cl.codes[w]);
   const q=`(${codes.join(' OR ')}) (conversation_id:${C.TWEET} OR url:${C.TWEET}) -is:retweet`;
   let res;try{res=await search(q);}catch(e){console.error('claim poll:',e.message);return;}
   const tweets=res.data||[],users=new Map(((res.includes||{}).users||[]).map(u=>[u.id,u]));
