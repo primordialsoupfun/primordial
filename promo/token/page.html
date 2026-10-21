@@ -1,0 +1,72 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+:root{--paper:#f3eddb;--paper2:#e9e1cb;--ink:#2b1d12;--ink2:#6a5541;--rule:#cbbfa6;--rust:#c9531a;--moss:#56613d;
+--serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,"DejaVu Serif",serif;--mono:"IBM Plex Mono","DejaVu Sans Mono",monospace}
+html,body{margin:0;width:var(--w);height:var(--h);overflow:hidden}
+body{background:radial-gradient(ellipse at 30% 20%,#f7f2e3,#efe7d1 60%,#e6dcc2);color:var(--ink);font-family:var(--serif);position:relative}
+#bg{position:absolute;inset:0}
+.wrap{position:relative;padding:var(--pad);height:calc(100% - 2*var(--pad));display:flex;flex-direction:column}
+.kick{font-family:var(--mono);font-size:var(--k);letter-spacing:.2em;text-transform:uppercase;color:var(--ink2)}
+h1{font-weight:400;font-size:var(--t);margin:.15em 0 .1em;letter-spacing:-.01em}
+h1 b{color:var(--rust);font-weight:400}
+.sub{font-size:var(--s);color:var(--ink2);font-style:italic;margin:0 0 .6em}
+.main{flex:1;display:grid;grid-template-columns:var(--cols);gap:var(--gap);align-items:stretch}
+.flows{display:flex;flex-direction:column;justify-content:space-between;gap:calc(var(--gap)*.6)}
+.flow{border:1.5px solid var(--ink);background:rgba(243,237,219,.86);padding:.7em .9em;border-radius:4px;flex:1;display:flex;flex-direction:column;justify-content:center}
+.flow .n{font-family:var(--mono);font-size:var(--k);letter-spacing:.16em;text-transform:uppercase;color:var(--ink2)}
+.flow h3{font-weight:400;font-size:var(--f);margin:.1em 0 .25em}
+.flow .d{font-size:var(--small);color:var(--ink2);margin-bottom:.4em}
+.bar{display:flex;height:var(--bh);font-family:var(--mono);font-size:var(--small);border:1.5px solid var(--ink);border-radius:3px;overflow:hidden}
+.bar div{display:flex;align-items:center;padding:0 .6em;white-space:nowrap}
+.pool{background:var(--rust);color:#fbf4e4}.burn{background:#3a2a1d;color:#f3eddb}.rest{background:transparent;color:var(--ink2)}
+.right{display:flex;flex-direction:column;gap:calc(var(--gap)*.6)}
+.box{border:1.5px solid var(--ink);background:rgba(243,237,219,.9);padding:.8em 1em;border-radius:4px}
+.box{display:flex;flex-direction:column;justify-content:center}.box.p{border-color:var(--rust);border-width:2.5px;flex:1.4}
+.box h2{font-weight:400;font-size:var(--f);margin:0 0 .3em}.box.p h2{color:var(--rust)}
+.box p{margin:.25em 0;font-size:var(--small2);line-height:1.35}
+.big{font-family:var(--mono);color:var(--rust)}
+.tops{display:flex;gap:.6em;margin-top:.5em}.tops div{flex:1;text-align:center;border:1px solid var(--rule);padding:.3em 0;font-family:var(--mono);font-size:var(--small)}
+.tops b{display:block;font-family:var(--serif);font-weight:400;font-size:1.5em;color:var(--rust)}
+.foot{margin-top:var(--gap);border-top:1.5px solid var(--ink);padding-top:.5em;display:flex;justify-content:space-between;font-family:var(--mono);font-size:var(--small);color:var(--ink2)}
+.foot b{color:var(--rust);font-weight:400}
+</style></head><body>
+<svg id="bg" xmlns="http://www.w3.org/2000/svg"></svg>
+<svg id="lines" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none"></svg>
+<div class="wrap">
+<div class="kick">Primordial  /  Token mechanics</div>
+<h1><b>$SOUP</b>: how the Soup pays</h1>
+<div class="sub">Three ways money enters the dish. Two places it goes.</div>
+<div class="main">
+ <div class="flows">
+  <div class="flow" id="f1"><div class="n">Flow 01</div><h3>SOUP trading</h3><div class="d">Creator fee from every trade</div>
+   <div class="bar"><div class="pool" style="width:70%">70% prize pool (SOL)</div><div class="rest" style="width:30%">30% Treasury</div></div></div>
+  <div class="flow" id="f2"><div class="n">Flow 02</div><h3>Interventions</h3><div class="d">Food bloom, meteor, cold front, toxic bloom</div>
+   <div class="bar"><div class="pool" style="width:40%">40% pool</div><div class="burn" style="width:60%">60% buy back and burn</div></div></div>
+  <div class="flow" id="f3"><div class="n">Flow 03</div><h3>Releases and trait unlocks</h3><div class="d">Putting a lineage in the dish, evolving it</div>
+   <div class="bar"><div class="burn" style="width:100%">100% buy back and burn SOUP</div></div></div>
+ </div>
+ <div class="right">
+  <div class="box p" id="pool"><h2>Prize pool, paid in SOL</h2>
+   <p>About <span class="big">half</span> the balance is paid out each day, <span class="big">every hour</span>, to living released lineages.</p>
+   <p><span class="big">15%</span> goes to a daily bonus for the top 3 lineages:</p>
+   <div class="tops"><div><b>50%</b>1st</div><div><b>30%</b>2nd</div><div><b>20%</b>3rd</div></div></div>
+  <div class="box" id="burn"><h2>Buy back and burn</h2><p>SOUP is bought on the market and permanently removed from supply.</p></div>
+ </div>
+</div>
+<div class="foot"><span>Every payment, burn and payout is a public Solana transaction.</span><b>primordialsoup.fun</b></div>
+</div>
+<script>
+const W=innerWidth,H=innerHeight,bg=document.getElementById('bg');let r=7,s='';const R=()=>(r=(r*9301+49297)%233280)/233280;
+// petri dishes
+[[W*.9,H*.12,W*.22],[W*.06,H*.95,W*.25]].forEach(([x,y,rad])=>{s+=`<circle cx="${x}" cy="${y}" r="${rad}" fill="none" stroke="#c7b893" stroke-width="2" opacity=".55"/><circle cx="${x}" cy="${y}" r="${rad*.93}" fill="#ebe1c6" opacity=".45" stroke="#d3c6a4"/>`;});
+for(let i=0;i<60;i++){const x=R()*W,y=R()*H,l=6+R()*18,a=R()*180,c=R()<.25?'#c9531a':(R()<.5?'#56613d':'#8a7556');
+ s+=`<g transform="translate(${x} ${y}) rotate(${a})" opacity="${.12+R()*.16}"><ellipse rx="${l}" ry="${l*.45}" fill="none" stroke="${c}" stroke-width="1.5"/><circle r="${l*.15}" fill="${c}"/><path d="M${l} 0 q${l*.4} ${l*.3} ${l*.9} 0" stroke="${c}" fill="none"/></g>`;}
+bg.setAttribute('width',W);bg.setAttribute('height',H);bg.innerHTML=s;
+// flow lines
+const L=document.getElementById('lines'),b=id=>document.getElementById(id).getBoundingClientRect();let o='<defs><marker id="m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="context-stroke"/></marker></defs>';
+const P=b('pool'),B=b('burn'),V=innerHeight>innerWidth;
+const line=(f,t,c)=>{const a=b(f);let x1,y1,x2,y2;if(V){x1=a.right-8;y1=a.top+a.height/2;x2=t.right+0;y2=t.top+t.height/2;
+ o+=`<path d="M${x1} ${y1} C${x1+40} ${y1},${x1+40} ${y2},${x2-2} ${y2}" fill="none" stroke="${c}" stroke-width="2.5" stroke-dasharray="6 5" marker-end="url(#m)"/>`;}
+ else{x1=a.right;y1=a.top+a.height/2;x2=t.left;y2=t.top+t.height/2+(c=='#c9531a'?-10:10)*0;o+=`<path d="M${x1} ${y1} C${(x1+x2)/2} ${y1},${(x1+x2)/2} ${y2},${x2-3} ${y2}" fill="none" stroke="${c}" stroke-width="2.5" marker-end="url(#m)"/>`;}};
+if(!V){line('f1',P,'#c9531a');line('f2',P,'#c9531a');line('f2',B,'#3a2a1d');line('f3',B,'#3a2a1d');}
+L.innerHTML=o;
+</script></body></html>

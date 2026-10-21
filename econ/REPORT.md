@@ -46,7 +46,7 @@ Prices are from server.js, with SOL at $150: food $1.50, meteor $7.50, cold fron
   | then falling in steps | |
   | 98,240 SOL and above | 0.050% |
 
-- 70% of the creator fee goes to the pool.
+- 70% of the creator fee goes to the pool. The other 30% goes to the Treasury.
 
 | creator fee | volume/day | pool inflow/day | capacity at $1 | avg | median | price |
 |---|---|---|---|---|---|---|

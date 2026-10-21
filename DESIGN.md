@@ -69,7 +69,7 @@ Every released lineage has a tree. Nodes become eligible through in-sim mileston
 Implemented in `economy.js`, server side only. The deterministic sim only adds the newborn shield flag carried by release events. Tuned in `econ/` (see `econ/REPORT.md`).
 
 **Pool inflows**
-- 70% of SOUP creator fees. Not wired yet, because the token is not live.
+- 70% of SOUP creator fees. The other 30% goes to the Treasury. Not wired yet, because the token is not live.
 - 40% of intervention fees. The other 60% goes to buyback and burn.
 - Release prices and trait burns are burned in full.
 

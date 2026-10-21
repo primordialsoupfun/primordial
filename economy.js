@@ -1,6 +1,6 @@
 'use strict';
 // Survival economy (server side only; the deterministic sim is not involved except the newborn shield flag on release events).
-// Pool inflows: 40% of intervention fees (and 70% of creator fees once a token exists). Payouts: 50% of the pool per day, paid hourly.
+// Pool inflows: 40% of intervention fees (and 70% of creator fees once a token exists; the other 30% goes to the Treasury). Payouts: 50% of the pool per day, paid hourly.
 // Hourly yield (85%) is split by (creature-seconds alive this hour)^1.0 since v5 (0.6 before) per released lineage; free releases weigh 1/4 and together take at most 10%.
 // A 15% slice accrues to a season bonus paid 50/30/20 to the top three lineages by season creature-seconds, minimum age 2 hours.
 const E={
