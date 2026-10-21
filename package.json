@@ -4,7 +4,7 @@
   "description": "A shared tank of evolving life.",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "node --max-old-space-size=400 server.js",
     "build": "echo no build step",
     "test:e2e": "node e2e-player.js && node e2e-sync.js"
   },

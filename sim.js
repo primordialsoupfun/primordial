@@ -162,16 +162,18 @@ class World{
   hash(){let h=0x811c9dc5;const mix=v=>{h^=v&0xffffffff;h=Math.imul(h,16777619)>>>0;};
     for(const k of this.c){mix(k.id);mix(Math.round(k.x*100));mix(Math.round(k.y*100));mix(Math.round(k.e*1e4));}
     mix(this.food.length);mix(this.species.length);return('0000000'+h.toString(16)).slice(-8);}
-  toJSON(){const o={};for(const key of Object.keys(this)){if(key==='r')o.r=this.r.a;else o[key]=this[key];}
-    o.c=this.c.map(k=>Object.assign({},k,{g:f32enc(k.g),act:f32enc(k.act)}));
-    o.species=this.species.map(s=>Object.assign({},s,{g:f32enc(s.g)}));return o;}
+  // Everything except species; species are added by the caller so no full extra copy of them is built.
+  baseJSON(){const o={};for(const key of Object.keys(this)){if(key==='r')o.r=this.r.a;else if(key!=='species')o[key]=this[key];}
+    o.c=this.c.map(k=>Object.assign({},k,{g:f32enc(k.g),act:f32enc(k.act)}));return o;}
+  static spJSON(s){return Object.assign({},s,{g:f32enc(s.g)});}
+  toJSON(){const o=this.baseJSON();o.species=this.species.map(World.spJSON);return o;}
   // Client snapshot: long-dead wild species (no living members, not a lineage root) are sent without genome, and small ones as a compact row.
   // Their genome is only read by the rare emergency respawn (fewer than 60 organisms); a client that hits it fails the hash check and reloads.
-  toLite(){const o=this.toJSON();o.species=this.species.map(s=>{if(s.count>0||s.root===s.id||s.released)return Object.assign({},s,{g:f32enc(s.g)});
+  toLite(){const o=this.baseJSON();o.species=this.species.map(s=>{if(s.count>0||s.root===s.id||s.released)return Object.assign({},s,{g:f32enc(s.g)});
       if(s.peak<6)return [s.parent,s.born,s.died,s.peak,s.maxGen,s.root,s.col[0],s.col[1],s.col[2],s.disastersSurvived];const x=Object.assign({},s);delete x.g;return x;});return o;}
   static fromJSON(o){const w=Object.create(World.prototype);Object.assign(w,o);w.r=new RNG(0);w.r.a=o.r;
     w.c=o.c.map(k=>Object.assign({},k,{g:f32dec(k.g),act:f32dec(k.act)}));
-    w.species=[];o.species.forEach((s,id)=>{if(Array.isArray(s)){const R=w.species[s[5]]||{};s={id,parent:s[0],born:s[1],died:s[2],count:0,peak:s[3],maxGen:s[4],name:R.name||null,owner:R.owner||null,released:false,root:s[5],col:[s[6],s[7],s[8]],traits:(R.traits||[]).slice(),disastersSurvived:s[9]};}
+    const src=o.species;w.species=[];src.forEach((s,id)=>{src[id]=null;if(Array.isArray(s)){const R=w.species[s[5]]||{};s={id,parent:s[0],born:s[1],died:s[2],count:0,peak:s[3],maxGen:s[4],name:R.name||null,owner:R.owner||null,released:false,root:s[5],col:[s[6],s[7],s[8]],traits:(R.traits||[]).slice(),disastersSurvived:s[9]};}
       const R=w.species[s.root];w.species.push(Object.assign({},s,{g:s.g!=null?f32dec(s.g):new Float32Array(R&&R.g?R.g:GLEN)}));});return w;}
 }
 g.Primordial={World,R,CX,CY,NI,NH,NO,TREE,TRAIT_BURN,CFG};

@@ -33,7 +33,7 @@ function stepWorld(){const evs=byTick.get(W.tick)||[];const before=W.epochs.leng
 // fast-forward to wall clock position on boot (simple: replay to last known tick)
 // Fast restart: resume from the last checkpoint on disk instead of replaying from tick 0.
 const SNAP=DATA+'/snapshot.json';
-try{if(fs.existsSync(SNAP)){const sn=JSON.parse(fs.readFileSync(SNAP,'utf8'));if(sn.seed===ledger.seed&&sn.events<=ledger.events.length){W=P.World.fromJSON(sn.state);
+try{if(fs.existsSync(SNAP)){let sn=JSON.parse(fs.readFileSync(SNAP,'utf8'));if(sn.seed===ledger.seed&&sn.events<=ledger.events.length){const st=sn.state;sn=null;W=P.World.fromJSON(st);
   console.log('resumed from checkpoint at tick',W.tick);}}}catch(e){console.error('checkpoint unreadable, replaying',e.message);W=new P.World(ledger.seed,ledger.cfg);}
 const target=ledger.lastTick||0;while(W.tick<target)stepWorld();
 // PvP (territory, hunting feed) switches on at a fixed tick recorded in the ledger, so older history replays unchanged.
@@ -55,7 +55,11 @@ function broadcast(type,data){const s=`event: ${type}\ndata: ${JSON.stringify(da
 setInterval(()=>{stepWorld();if(W.tick%15===0){broadcast('tick',{t:W.tick});ledger.lastTick=W.tick;}},1000/HZ);
 setInterval(save,5000);
 // Disk checkpoint keeps the full state (every genome) so a restart resumes exactly.
-function writeCkpt(){const tmp=SNAP+'.tmp';fs.writeFileSync(tmp,`{"seed":${ledger.seed},"events":${ledger.events.length},"tick":${W.tick},"state":${JSON.stringify(W)}}`);fs.renameSync(tmp,SNAP);}
+// Written in chunks so the full state is never held as one string; the file format is unchanged.
+function writeCkpt(){const tmp=SNAP+'.tmp';const fd=fs.openSync(tmp,'w');try{const base=JSON.stringify(W.baseJSON());
+  fs.writeSync(fd,`{"seed":${ledger.seed},"events":${ledger.events.length},"tick":${W.tick},"state":${base.slice(0,-1)}${base.length>2?',':''}"species":[`);
+  const S=W.species;for(let i=0;i<S.length;i+=2000){let t='';for(let j=i;j<Math.min(S.length,i+2000);j++)t+=(j?',':'')+JSON.stringify(P.World.spJSON(S[j]));fs.writeSync(fd,t);}
+  fs.writeSync(fd,']}}');}finally{fs.closeSync(fd);}fs.renameSync(tmp,SNAP);}
 setInterval(()=>{try{writeCkpt();}catch(e){console.error('checkpoint write failed',e.message);}},60000);
 setTimeout(()=>{try{writeCkpt();}catch(e){}},5000);
 function schedule(ev){ev.at=W.tick+LEAD;ev.n=ledger.events.length;ledger.events.push(ev);if(!byTick.has(ev.at))byTick.set(ev.at,[]);byTick.get(ev.at).push(ev);save();broadcast('event',ev);return ev;}
