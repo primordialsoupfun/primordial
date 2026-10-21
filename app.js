@@ -23,7 +23,7 @@ function addEv(e){if(!evAt.has(e.at))evAt.set(e.at,[]);const a=evAt.get(e.at);if
 async function boot(){
   CFG=await (await fetch('/api/config')).json();
   document.querySelectorAll('.tk').forEach(e=>e.textContent=CFG.ticker);
-  $('cluster').textContent=({localnet:'Local validator',devnet:'Devnet',mainnet:'Mainnet'}[CFG.cluster]||CFG.cluster)+' prototype. Treasury '+short(CFG.treasury)+'.';
+  $('cluster').textContent=({localnet:'Local validator',devnet:'Devnet',mainnet:'Mainnet'}[CFG.cluster]||CFG.cluster)+' prototype. Payments Wallet '+short(CFG.treasury)+'.';
   await resync();
   const es=new EventSource('/api/stream');
   es.addEventListener('tick',m=>{srvTick=JSON.parse(m.data).t;srvAt=performance.now();});

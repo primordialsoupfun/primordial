@@ -39,7 +39,7 @@ Visual identity: linocut version B. Deep ink black (#111314) and warm rust orang
 Verification (`/api/submit`):
 - The tx must be confirmed with no error.
 - The memo must start with `primordial:v1:` followed by JSON.
-- There must be a system transfer from the fee payer to the treasury of at least the price, or an SPL burn of the configured mint by the fee payer.
+- There must be a system transfer from the fee payer to the payments wallet of at least the price, or an SPL burn of the configured mint by the fee payer.
 - A signature can only be used once.
 - Coordinates are clamped. Names are filtered to letters, digits and . ' - and capped at 24 characters.
 - **Tested:** a replayed signature, an underpaid meteor and a trait burn by a non-owner were all rejected.
@@ -141,8 +141,8 @@ Implemented in `economy.js`, server side only. The deterministic sim only adds t
 
 ## Solana pieces
 - **Payments:** wallet connect (Phantom or Solflare). The tx is a transfer plus a memo, or an SPL burn plus a memo. The server verifies it from the RPC.
-- **Commits:** every `COMMIT_TICKS` the treasury sends a memo `primordial:commit:<tick>:<hash>:<logLength>`.
-- **Daily buyback and burn:** fees queue up. The job quotes a swap (a DRY RUN on test networks, with no Jupiter call) and burns the equivalent test-mint tokens from the treasury account. The tx is linked on the site, with a burn counter in the masthead.
+- **Commits:** every `COMMIT_TICKS` the payments wallet sends a memo `primordial:commit:<tick>:<hash>:<logLength>`.
+- **Daily buyback and burn:** fees queue up. The job quotes a swap (a DRY RUN on test networks, with no Jupiter call) and burns the equivalent test-mint tokens from the payments wallet account. The tx is linked on the site, with a burn counter in the masthead.
 - **Kill switch:** stop the server, or set the prices to zero. A mainnet program with a pause flag is still pending.
 
 ## Sharing (no bot account)
@@ -161,6 +161,6 @@ Implemented in `economy.js`, server side only. The deterministic sim only adds t
 - Everything can be paused instantly.
 
 ## Remaining for mainnet (needs explicit approval)
-- **On-chain program:** an Anchor event program with a pause flag and price table, a treasury PDA and a pool PDA.
+- **On-chain program:** an Anchor event program with a pause flag and price table, a payments wallet PDA and a pool PDA.
 - **Buyback:** a real Jupiter swap with a slippage cap.
 - **Token and launch:** token creation, an RPC provider, a security review, legal review of the prize pool, a cross-browser determinism matrix, rate limits and cooldowns, name moderation, hosting, and pointing the domain.
