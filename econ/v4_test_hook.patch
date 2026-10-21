@@ -1,0 +1,22 @@
+diff --git a/sim.js b/sim.js
+index acb6b02..f066f99 100644
+--- a/sim.js
++++ b/sim.js
+@@ -104,7 +104,7 @@ class World{
+     const FG=this.grid(this.food),CG=this.grid(this.c);
+     const eaten=new Uint8Array(this.food.length),dead=new Uint8Array(this.c.length);
+     this.toxic=this.toxic.filter(t=>t.until>this.tick);
+-    const born=[];const v4sh=this.v4();
++    const born=[];const v4sh=this.v4();const O=globalThis.__V4T,V4S=O?O.start:.5,V4F=O?O.fade:V4FADE,V4C=O?O.cap:1e9;let LC=null;if(v4sh&&V4C<1e9){LC=new Map();for(const k of this.c){const ro=this.species[k.sp].root;LC.set(ro,(LC.get(ro)||0)+1);}}
+     for(let ci=0;ci<this.c.length;ci++){const k=this.c[ci];if(dead[ci])continue;const T=this.species[k.sp].traits,h=t=>T.indexOf(t)>=0;
+       const sr=h('sense1')?(h('sense2')?24:19):14,reach=h('sense2')?22:16;
+       const lx=k.x+(k.dx*reach-k.dy*10),ly=k.y+(k.dy*reach+k.dx*10),rx=k.x+(k.dx*reach+k.dy*10),ry=k.y+(k.dy*reach-k.dx*10);
+@@ -125,7 +125,7 @@ class World{
+       const base=.0016*(h('meta1')?.8:1)*(h('armor2')?1.15:1),move=thrust*.0022*(h('loco1')?1.1:1)*(h('meta2')?.9:1);
+       const shd=(cold||tox)&&this.shielded(k),coldC=shd?0:cold*.0024*(h('res1')?.4:1),toxC=shd?0:tox*.009*(h('res2')?.35:1);
+       let symb=0;if(h('symb'))symb=Math.min(.0008,(nl+nr)*.00015);
+-      let starve=1;if(v4sh){const RS=this.species[this.species[k.sp].root];if(RS.bornTick!=null){const a=this.tick-RS.bornTick;if(a<V4FADE)starve=.5+.5*a/V4FADE;}}
++      let starve=1;if(v4sh){const RS=this.species[this.species[k.sp].root];if(RS.bornTick!=null){const a=this.tick-RS.bornTick;if(a<V4F&&(!LC||LC.get(RS.id)<V4C))starve=V4S+(1-V4S)*a/V4F;}}
+       k.e-=(base+move)*starve+coldC+toxC-symb;
+       const gain=h('pred')?.75:1; // predators digest algae less well
+       this.sense(FG,this.food,k.x,k.y,5,(f,i)=>{if(!eaten[i]){eaten[i]=1;k.e+=f.v*gain;}return 0;});
