@@ -162,6 +162,7 @@ http.createServer(async(req,res)=>{
   if((m=p.match(/^\/(s|e|h)\/(\d+)$/)))return sharePage(res,{s:'species',e:'event',h:'hall'}[m[1]],+m[2],req.headers.host);
   let f=p==='/'?'/index.html':p==='/how'?'/how.html':p==='/whitepaper'?'/whitepaper.html':p;if(f.startsWith('/vendor/web3.js'))f='/node_modules/@solana/web3.js/lib/index.iife.min.js';
   if(/^\/icons\/(favicon\.ico|favicon-32\.png|og-claim\.png|apple-touch-icon\.png|icon-512\.png|og-fallback\.png)$/.test(f)){res.writeHead(200,{'content-type':f.endsWith('.ico')?'image/x-icon':'image/png','cache-control':'max-age=86400'});return fs.createReadStream(__dirname+f).pipe(res);}
+  if((m=f.match(/^\/wallets\/(phantom|solflare|metamask|backpack|okx|coinbase|trust)\.(svg|png)$/))&&fs.existsSync(__dirname+'/public'+f)){res.writeHead(200,{'content-type':m[2]==='svg'?'image/svg+xml':'image/png','cache-control':'max-age=604800'});return fs.createReadStream(__dirname+'/public'+f).pipe(res);}
   if(f==='/favicon.ico'){res.writeHead(200,{'content-type':'image/x-icon'});return fs.createReadStream(__dirname+'/icons/favicon.ico').pipe(res);}
   const allowed=['/claim','/index.html','/style.css','/sim.js','/pvp.js','/organism.js','/card.js','/app.js','/audio.js','/onboarding.js','/wallets.js','/how.html','/whitepaper.html','/audio/ambient.mp3','/node_modules/@solana/web3.js/lib/index.iife.min.js'];
   if(!allowed.includes(f)){res.writeHead(404);return res.end('not found');}
