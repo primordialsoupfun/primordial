@@ -392,9 +392,9 @@ $('cardpng').onclick=()=>{if(!sel)return;const s=W.species[sel.sp],st=W.lineageS
 // ---------- wallet + payments
 const provider=()=>window.__wallets&&window.__wallets.current()||null;
 async function connectWallet(){window.__primCluster=CFG&&CFG.cluster;const pv=await window.__wallets.pick();if(!pv)return false;
-  const r={publicKey:pv.publicKey};setTimeout(drawLines,50);wallet=(r&&r.publicKey||pv.publicKey).toString();$('who').textContent=short(wallet);$('connect').firstChild.textContent='Connected';drawSkill();return true;}
+  const r={publicKey:pv.publicKey};setTimeout(drawLines,50);wallet=(r&&r.publicKey||pv.publicKey).toString();$('who').textContent=short(wallet);$('connect').firstChild.textContent='Connected';drawSkill();window.dispatchEvent(new Event('prim-wallet-change'));return true;}
 $('connect').onclick=connectWallet;
-window.__prim={wallet:()=>wallet,connect:connectWallet,releaseFree:n=>{const m=mark||bestVent();return buy(Object.assign({t:'release',name:n,free:1},m?{x:m[0],y:m[1]}:{}),0,0);},locate:id=>locate(id)};
+window.__prim={wallet:()=>wallet,clear:()=>{wallet=null;$('who').textContent='';$('connect').firstChild.textContent='Connect wallet';},disconnect:async()=>{await window.__wallets.disconnect();wallet=null;$('who').textContent='';$('connect').firstChild.textContent='Connect wallet';drawSkill();setTimeout(drawLines,50);},connect:connectWallet,releaseFree:n=>{const m=mark||bestVent();return buy(Object.assign({t:'release',name:n,free:1},m?{x:m[0],y:m[1]}:{}),0,0);},locate:id=>locate(id)};
 function toast(html){const t=$('toast');t.hidden=false;t.innerHTML=html;}
 async function buy(memo,lamports,burnTokens){const pv=provider();if(!pv||!wallet){toast('Connect a wallet first.');return;}
   const w3=window.solanaWeb3,conn=new w3.Connection(location.origin+CFG.rpc,'confirmed'),me=new w3.PublicKey(wallet),tx=new w3.Transaction();

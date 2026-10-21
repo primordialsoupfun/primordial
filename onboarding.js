@@ -29,7 +29,7 @@ function render(){if(!st)return;$('clAge').textContent=st.minAgeDays;$('clFol').
     $('clReply').href='https://x.com/intent/post?in_reply_to='+tw+'&text='+encodeURIComponent(fill(st.replyCopy,st.code));}
   const en=(id,on)=>{const e=$(id);if(e.tagName==='BUTTON')e.disabled=!on;else e.classList.toggle('dis',!on);};
   en('clCode',pre&&!has);en('clPost',open&&has);en('clFollow',pre||open);en('clLike',open&&!!tw);en('clReply',open&&has);en('clCheck',open&&has&&!st.granted);
-  $('clCodeOut').textContent=st.code||'';document.querySelectorAll('.cs5 .wait').forEach(e=>e.hidden=!(pre&&!tw));$('clCode').hidden=has;if(pre&&!st.open)$('clKicker').textContent=has?'Your code is ready':'Free microbe, sign up now';paint();
+  $('clCodeOut').textContent=st.code||'';{const w=window.__prim&&window.__prim.wallet();$('clDisc').hidden=!w;$('clWho').textContent=w?'Connected '+w.slice(0,4)+'...'+w.slice(-4):'';}document.querySelectorAll('.cs5 .wait').forEach(e=>e.hidden=!(pre&&!tw));$('clCode').hidden=has;if(pre&&!st.open)$('clKicker').textContent=has?'Your code is ready':'Free microbe, sign up now';paint();
   if(!st.open){$('dlgGo').hidden=true;$('clNameRow').hidden=true;note(pre?(has?'Your code is saved to your wallet. Post on X, Like, Reply and Check open when the launch post is live.':'Connect and sign now to get your code. Post on X, Like, Reply and Check open when the launch post is live.'):'Opens at launch. Buttons switch on when the claim opens.');return;}
   if(st.soldOut&&!st.granted){$('clNameRow').hidden=true;$('dlgGo').hidden=true;note(`All ${st.max} free microbes have been claimed. You can still release one at today's price from the Intervene panel.`);return;}
   const ready=st.granted&&!st.used;$('clNameRow').hidden=!ready;$('dlgGo').hidden=!ready;
@@ -44,6 +44,14 @@ $('clCode').onclick=async()=>{if(!(await needWallet()))return;const w=window.__p
   const pv=window.__wallets.current();if(!pv||!pv.signMessage){note('Your wallet cannot sign messages. Try Phantom or Solflare.');return;}
   try{const r=await pv.signMessage(new TextEncoder().encode(g.bindMsg),'utf8');const sg=r.signature||r;let b='';for(const x of sg)b+=String.fromCharCode(x);
     await api('code&sig='+encodeURIComponent(btoa(b)));}catch(e){note('Signature cancelled. Nothing was sent.');}};
+async function resetClaim(){
+  for(const S of [localStorage,sessionStorage])for(const k of Object.keys(S))if(/^primordial\.(claim|wallet|sig|session|code)/.test(k))S.removeItem(k);
+  st=null;$('clCodeOut').textContent='';$('freeName').value='';}
+window.addEventListener('prim-wallet-reset',()=>{window.__prim&&window.__prim.clear&&window.__prim.clear();resetClaim();});
+window.addEventListener('prim-wallet-change',()=>{if(!dlg.hidden)api('');});
+$('clDisc').onclick=async()=>{try{await window.__prim.disconnect();}catch(e){console.error(e);}
+  for(const S of [localStorage,sessionStorage])for(const k of Object.keys(S))if(/^primordial\.(claim|wallet|sig|session|code)/.test(k))S.removeItem(k);
+  st=null;$('clCodeOut').textContent='';$('freeName').value='';await api('');note('Disconnected. Pick any wallet to start again.');};
 $('clCheck').onclick=async()=>{if(await needWallet())await api('check');setTimeout(()=>{if(!dlg.hidden&&st&&st.pending)api('');},65000);};
 $('dlgGo').onclick=async()=>{const n=$('freeName').value.trim().replace(/[^\w .'-]/g,'').slice(0,24);if(!n){note('Give your microbe a name first.');return;}
   if(!(await needWallet()))return;dlg.hidden=true;window.__prim.releaseFree(n);};
