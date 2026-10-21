@@ -390,9 +390,9 @@ $('cardpng').onclick=()=>{if(!sel)return;const s=W.species[sel.sp],st=W.lineageS
   Card.card(cv.getContext('2d'),{kicker:s.released?'Released species':'Wild species',title:spName(s),subtitle:`${st.alive} living organisms in this lineage, ${st.maxGen} generations deep.`,sp:s,root:W.species[s.root],tick:W.tick,traits:s.traits.map(t=>P.TREE[t].label),stats:[['Alive',s.count],['Generation',sel.gen],['Origin epoch',s.born],['Disasters',s.disastersSurvived],['Species no.',s.id],['Energy',sel.e.toFixed(2)]]},O,{serif:SERIF,mono:MONO});
   const a=document.createElement('a');a.href=cv.toDataURL('image/png');a.download=`primordial-${s.id}.png`;a.click();};
 // ---------- wallet + payments
-const provider=()=>window.phantom&&window.phantom.solana||window.solflare||window.solana||null;
-async function connectWallet(){const pv=provider();if(!pv){toast('No Solana wallet found. Install Phantom or Solflare and switch it to devnet.');return false;}
-  const r=await pv.connect();setTimeout(drawLines,50);wallet=(r&&r.publicKey||pv.publicKey).toString();$('who').textContent=short(wallet);$('connect').firstChild.textContent='Connected';drawSkill();return true;}
+const provider=()=>window.__wallets&&window.__wallets.current()||null;
+async function connectWallet(){window.__primCluster=CFG&&CFG.cluster;const pv=await window.__wallets.pick();if(!pv)return false;
+  const r={publicKey:pv.publicKey};setTimeout(drawLines,50);wallet=(r&&r.publicKey||pv.publicKey).toString();$('who').textContent=short(wallet);$('connect').firstChild.textContent='Connected';drawSkill();return true;}
 $('connect').onclick=connectWallet;
 window.__prim={wallet:()=>wallet,connect:connectWallet,releaseFree:n=>{const m=mark||bestVent();return buy(Object.assign({t:'release',name:n,free:1},m?{x:m[0],y:m[1]}:{}),0,0);},locate:id=>locate(id)};
 function toast(html){const t=$('toast');t.hidden=false;t.innerHTML=html;}

@@ -12,7 +12,9 @@ const PRICES={food:0.01*L,meteor:0.05*L,cold:0.03*L,toxic:0.03*L,release:0.10*L}
 const FOOD_BURN=50,FREE_PER_DAY=+process.env.FREE_PER_DAY||200; // tokens, alternative to SOL for feeding
 const DATA=process.env.DATA_DIR||__dirname+'/data';require('fs').mkdirSync(DATA,{recursive:true});const _D=0,LEDGER=DATA+'/ledger.json';
 let ledger=fs.existsSync(LEDGER)?JSON.parse(fs.readFileSync(LEDGER)):{seed:SEED,cfg:CFG,events:[],used:{},revenue:0,pool:0,burnQueue:0,burns:[],commits:[],payouts:[],tokensBurned:0,traitBurned:0};
-const eco=Eco.init(ledger);const claims=Claims.init(ledger);eco.lastTick=eco.lastTick||0;
+const eco=Eco.init(ledger);const claims=Claims.init(ledger);
+// one-off cleanup of test claim codes, by code (CLAIM_PURGE_CODES=SOUPxxxxxx,...). Only removes unused, ungranted codes.
+for(const c of String(process.env.CLAIM_PURGE_CODES||'').split(',').map(x=>x.trim().toUpperCase()).filter(Boolean)){const w=claims.byCode[c];if(w&&!claims.granted[w]){delete claims.byCode[c];delete claims.codes[w];delete claims.pending[w];delete claims.reasons[w];console.log('claim code purged');}}eco.lastTick=eco.lastTick||0;
 const save=()=>fs.writeFileSync(LEDGER,JSON.stringify(ledger,null,1));
 // Canonical world: rebuild from seed + log on boot.
 let W=new P.World(ledger.seed,ledger.cfg);const byTick=new Map();
@@ -127,7 +129,7 @@ function cardData(kind,id){
 }
 // Cache busting: asset URLs carry the deployed commit (or a content hash locally).
 const VER=(process.env.RENDER_GIT_COMMIT||'').slice(0,7)||require('crypto').createHash('sha1').update(['app.js','audio.js','onboarding.js','how.html','sim.js','pvp.js','organism.js','card.js','style.css','index.html'].map(f=>fs.readFileSync(__dirname+'/'+f)).join('')).digest('hex').slice(0,8);
-let _idx=null;function indexHtml(){if(!_idx||!process.env.RENDER_GIT_COMMIT)_idx=fs.readFileSync(__dirname+'/index.html','utf8').replace(/(src|href)="(\/?)(vendor\/web3\.js|sim\.js|pvp\.js|organism\.js|card\.js|app\.js|audio\.js|onboarding\.js|style\.css)"/g,(m,a,sl,f)=>`${a}="/${f}?v=${VER}"`);return _idx;}
+let _idx=null;function indexHtml(){if(!_idx||!process.env.RENDER_GIT_COMMIT)_idx=fs.readFileSync(__dirname+'/index.html','utf8').replace(/(src|href)="(\/?)(vendor\/web3\.js|sim\.js|pvp\.js|organism\.js|card\.js|app\.js|audio\.js|onboarding\.js|wallets\.js|style\.css)"/g,(m,a,sl,f)=>`${a}="/${f}?v=${VER}"`);return _idx;}
 const short=a=>a&&a.length>12?a.slice(0,4)+'...'+a.slice(-4):a||'unknown';
 let canvasMod=null;try{canvasMod=require('@napi-rs/canvas');}catch(e){}
 function ogPng(d){const c=canvasMod.createCanvas(1200,630);Card.card(c.getContext('2d'),d,Org,{serif:'serif',mono:'monospace'});return c.toBuffer('image/png');}
@@ -161,7 +163,7 @@ http.createServer(async(req,res)=>{
   let f=p==='/'?'/index.html':p==='/how'?'/how.html':p==='/whitepaper'?'/whitepaper.html':p;if(f.startsWith('/vendor/web3.js'))f='/node_modules/@solana/web3.js/lib/index.iife.min.js';
   if(/^\/icons\/(favicon\.ico|favicon-32\.png|og-claim\.png|apple-touch-icon\.png|icon-512\.png|og-fallback\.png)$/.test(f)){res.writeHead(200,{'content-type':f.endsWith('.ico')?'image/x-icon':'image/png','cache-control':'max-age=86400'});return fs.createReadStream(__dirname+f).pipe(res);}
   if(f==='/favicon.ico'){res.writeHead(200,{'content-type':'image/x-icon'});return fs.createReadStream(__dirname+'/icons/favicon.ico').pipe(res);}
-  const allowed=['/claim','/index.html','/style.css','/sim.js','/pvp.js','/organism.js','/card.js','/app.js','/audio.js','/onboarding.js','/how.html','/whitepaper.html','/audio/ambient.mp3','/node_modules/@solana/web3.js/lib/index.iife.min.js'];
+  const allowed=['/claim','/index.html','/style.css','/sim.js','/pvp.js','/organism.js','/card.js','/app.js','/audio.js','/onboarding.js','/wallets.js','/how.html','/whitepaper.html','/audio/ambient.mp3','/node_modules/@solana/web3.js/lib/index.iife.min.js'];
   if(!allowed.includes(f)){res.writeHead(404);return res.end('not found');}
   if(p==='/claim'){res.writeHead(200,{'content-type':MIME['.html'],'cache-control':'no-cache'});return res.end(indexHtml().replace(/<title>[^<]*<\/title>/,'<title>First 500 Solana wallets. Claim a free microbe | Primordial</title>').replace(/og:title" content="[^"]*/,'og:title" content="First 500 Solana wallets. The first shared petri dish.').replace(/og:description" content="[^"]*/,'og:description" content="Claim a free microbe in the Soup. Still testing the best survival model. Opening soon.').replace(/og:url" content="[^"]*/,'og:url" content="https://primordialsoup.fun/claim').replace(/og-fallback\.png/g,'og-claim.png').replace('<body','<body data-claim="1"'));}
   if(f==='/index.html'){res.writeHead(200,{'content-type':MIME['.html'],'cache-control':'no-cache'});return res.end(indexHtml());}

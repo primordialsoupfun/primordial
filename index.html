@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <meta property="og:image" content="https://primordialsoup.fun/icons/og-fallback.png">
 <meta name="twitter:image" content="https://primordialsoup.fun/icons/og-fallback.png">
-<meta name="theme-color" content="#f3eddb">
+<meta name="theme-color" content="#f4ecd6">
 <link rel="stylesheet" href="style.css">
 </head>
 <body class="booting">
@@ -55,14 +55,14 @@
   </div>
 </div>
 
-<div id="releaseDlg" class="guide" hidden><style>#releaseDlg [hidden]{display:none!important}.clsteps li{font-size:15px}.cs5{list-style:none;padding:0;margin:10px 0}.cs5 li{display:flex;gap:12px;padding:10px 0;border-top:1px solid rgba(17,19,20,.25)}.cs5 li p{margin:3px 0 8px}.cs5 .ck{flex:0 0 22px;height:22px;border:1.5px solid #111314;border-radius:50%;margin-top:2px;position:relative}.cs5 li.done .ck{background:#111314}.cs5 li.done .ck:after{content:"";position:absolute;left:7px;top:3px;width:5px;height:10px;border:solid #f3eddb;border-width:0 2px 2px 0;transform:rotate(45deg)}.cs5 .wait{color:#a4472b;margin:0 0 6px}.cs5 .btn{display:inline-flex;text-decoration:none;color:inherit;margin:2px 6px 2px 0}.cs5 .dis,.cs5 button:disabled{opacity:.4;pointer-events:none}#releaseDlg .card{max-height:92vh;overflow-y:auto}body[data-claim] #releaseDlg .card{max-width:560px}body[data-claim] #dlgCancel span,body[data-claim] #dlgCancel{font-size:15px}</style>
+<div id="releaseDlg" class="guide" hidden><style>#releaseDlg [hidden]{display:none!important}.clsteps li{font-size:15px}.cs5{list-style:none;padding:0;margin:10px 0}.cs5 li{display:flex;gap:12px;padding:10px 0;border-top:1px solid rgba(17,19,20,.25)}.cs5 li p{margin:3px 0 8px}.cs5 .ck{flex:0 0 22px;height:22px;border:1.5px solid var(--ink);border-radius:50%;margin-top:2px;position:relative}.cs5 li.done .ck{background:var(--ink)}.cs5 li.done .ck:after{content:"";position:absolute;left:7px;top:3px;width:5px;height:10px;border:solid #f4ecd6;border-width:0 2px 2px 0;transform:rotate(45deg)}.cs5 .wait{color:#a4472b;margin:0 0 6px}.cs5 .btn{display:inline-flex;text-decoration:none;color:inherit;margin:2px 6px 2px 0}.cs5 .dis,.cs5 button:disabled{opacity:.4;pointer-events:none}#releaseDlg .card{max-height:92vh;overflow-y:auto}body[data-claim] #releaseDlg .card{max-width:560px}body[data-claim] #dlgCancel span,body[data-claim] #dlgCancel{font-size:15px}</style>
   <div class="card">
     <p class="gstep" id="clKicker">Free microbe</p>
     <h2>Claim a free microbe</h2>
     <p id="clClosed" class="note">Free microbe claim opens at launch. First 500 Solana wallets.</p>
     <ol class="clsteps cs5">
       <li id="cs1"><span class="ck"></span><div><b>Connect and sign</b><p class="muted small">Connect your Solana wallet and sign a short message to get your claim code. It is a signature only. No transaction, no fee.</p><button id="clCode" class="ghost"><span>Connect wallet and sign</span></button> <code id="clCodeOut"></code></div></li>
-      <li id="cs2"><span class="ck"></span><div><b>Post on X</b><p class="muted small">Quote our launch post with your code. Your X account must be at least <span id="clAge">30</span> days old with at least <span id="clFol">25</span> followers.</p><p class="small wait" hidden>Opens when the launch post is live.</p><a id="clPost" class="ghost btn" target="_blank" rel="noopener">Post on X</a></div></li>
+      <li id="cs2"><span class="ck"></span><div><b>Post on X</b><p class="muted small">Quote our launch post with your code. Your X account must be at least <span id="clAge">30</span> days old with at least <span id="clFol">5</span> followers.</p><p class="small wait" hidden>Opens when the launch post is live.</p><a id="clPost" class="ghost btn" target="_blank" rel="noopener">Post on X</a></div></li>
       <li id="cs3"><span class="ck"></span><div><b>Follow</b><p class="muted small">Follow <span id="clHandle">@primordialfun</span> for launch news.</p><a id="clFollow" class="ghost btn" target="_blank" rel="noopener">Follow</a></div></li>
       <li id="cs4"><span class="ck"></span><div><b>Like and reply</b><p class="muted small">Optional. A reply with your code also counts as your share.</p><p class="small wait" hidden>Opens when the launch post is live.</p><a id="clLike" class="ghost btn" target="_blank" rel="noopener">Like</a> <a id="clReply" class="ghost btn" target="_blank" rel="noopener">Reply</a></div></li>
       <li id="cs5"><span class="ck"></span><div><b>Check and claim</b><p class="muted small">We look for your post. When it is found, name your microbe and release it. It starts next to a warm vent, protected for 10 minutes.</p><p class="small wait" hidden>Opens when the launch post is live.</p><button id="clCheck" class="primary"><span>Check and claim</span></button></div></li>
@@ -84,8 +84,8 @@
       <p id="zhint" class="zhint">Scroll or pinch to zoom, drag to move</p>
       <div id="zcard" class="zcard" hidden></div>
       <div class="zlegend" aria-label="Map legend"><p>Territory</p>
-        <span><svg viewBox="0 0 22 22" aria-hidden="true"><path d="M5 20V3" stroke="#111314" stroke-width="1.2"/><path d="M5 3.5q6-1.5 12 1.5l-3.5 3 3.5 3q-6-2.5-12-.5z" fill="#c9531a" stroke="#111314" stroke-width=".9"/></svg>Held, flag in the holder's colour</span>
-        <span><svg viewBox="0 0 22 22" aria-hidden="true"><path d="M5 20V3" stroke="#111314" stroke-width="1.2"/><circle cx="5" cy="3" r="1.4" fill="#111314"/></svg>Bare pole, unclaimed</span>
+        <span><svg viewBox="0 0 22 22" aria-hidden="true"><path d="M5 20V3" stroke="var(--ink)" stroke-width="1.2"/><path d="M5 3.5q6-1.5 12 1.5l-3.5 3 3.5 3q-6-2.5-12-.5z" fill="#c9531a" stroke="var(--ink)" stroke-width=".9"/></svg>Held, flag in the holder's colour</span>
+        <span><svg viewBox="0 0 22 22" aria-hidden="true"><path d="M5 20V3" stroke="var(--ink)" stroke-width="1.2"/><circle cx="5" cy="3" r="1.4" fill="var(--ink)"/></svg>Bare pole, unclaimed</span>
         <span class="muted">Hover or tap a zone for details</span></div>
       <div id="fastnote" class="fastnote" hidden><span>Running fast? Refresh to resync.</span><button id="fastgo" type="button">Refresh</button></div>
     </div>
@@ -177,6 +177,7 @@
 <script src="pvp.js"></script>
 <script src="organism.js"></script>
 <script src="card.js"></script>
+<script src="wallets.js"></script>
 <script src="app.js"></script>
 <script src="audio.js"></script>
 <script src="onboarding.js"></script>

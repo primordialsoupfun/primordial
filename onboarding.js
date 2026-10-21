@@ -36,14 +36,12 @@ function render(){if(!st)return;$('clAge').textContent=st.minAgeDays;$('clFol').
   note(st.error||st.reason||(st.used?'Your free microbe is already in the dish.':ready?'Confirmed. Name your microbe and release it.':st.pending?'Looking for your post. This can take a few minutes. You can close this window and come back.':''));}
 ['clPost','clFollow','clLike','clReply'].forEach((id,i)=>$(id).addEventListener('click',()=>{if(id==='clLike'||id==='clReply')mark(4);else mark(i===0?2:3);}));
 $('ctaRelease').onclick=async()=>{dlg.hidden=false;await api('');};
-if(location.pathname==='/claim'){$('dlgCancel').textContent='See the live dish';const h=document.querySelector('#releaseDlg h2');h.innerHTML='<span style="display:block;font-size:.62em;font-style:normal;letter-spacing:.08em;color:#a4472b">FIRST 500 SOLANA WALLETS</span>The first shared petri dish. Claim a free microbe.';h.insertAdjacentHTML('afterend','<p class="muted small">Still testing the best survival model. Opening soon.</p>');}
+if(location.pathname==='/claim'){$('dlgCancel').textContent='See the live dish';const h=document.querySelector('#releaseDlg h2');h.innerHTML='<span style="display:block;font-size:.62em;font-style:normal;letter-spacing:.02em;color:#a4472b">First 500 Solana wallets</span>The first shared petri dish. Claim a free microbe.';h.insertAdjacentHTML('afterend','<p class="muted small">Still testing the best survival model. Opening soon.</p>');}
 if(new URLSearchParams(location.search).get('claim')||location.pathname==='/claim')setTimeout(()=>$('ctaRelease').click(),800);
 $('dlgCancel').onclick=()=>{dlg.hidden=true;};
-const inj=()=>window.phantom&&window.phantom.solana||window.solflare||window.solana;
-async function needWallet(){const p=window.__prim;if(!p)return false;if(p.wallet())return true;
-  if(!inj()&&/iPhone|iPad|Android/i.test(navigator.userAgent)){location.href='https://phantom.app/ul/browse/'+encodeURIComponent(location.origin+'/claim')+'?ref='+encodeURIComponent(location.origin);return false;}const ok=await p.connect();if(!ok)note('No Solana wallet found. Install Phantom or Solflare, then try again.');return !!ok;}
+async function needWallet(){const p=window.__prim;if(!p)return false;if(p.wallet())return true;const ok=await p.connect();if(!ok)note('Choose a Solana wallet to continue.');return !!ok;}
 $('clCode').onclick=async()=>{if(!(await needWallet()))return;const w=window.__prim.wallet();const g=await (await fetch('/api/claim?wallet='+encodeURIComponent(w))).json();
-  const pv=window.phantom&&window.phantom.solana||window.solflare||window.solana;if(!pv||!pv.signMessage){note('Your wallet cannot sign messages. Try Phantom or Solflare.');return;}
+  const pv=window.__wallets.current();if(!pv||!pv.signMessage){note('Your wallet cannot sign messages. Try Phantom or Solflare.');return;}
   try{const r=await pv.signMessage(new TextEncoder().encode(g.bindMsg),'utf8');const sg=r.signature||r;let b='';for(const x of sg)b+=String.fromCharCode(x);
     await api('code&sig='+encodeURIComponent(btoa(b)));}catch(e){note('Signature cancelled. Nothing was sent.');}};
 $('clCheck').onclick=async()=>{if(await needWallet())await api('check');setTimeout(()=>{if(!dlg.hidden&&st&&st.pending)api('');},65000);};

@@ -206,3 +206,22 @@ button,a,.lines li{transition:background .2s var(--ease),color .2s var(--ease),b
 .zlegend{display:none}.terr-on .zlegend{display:flex}
 .fastnote{bottom:52px}
 @media (max-width:760px){.terr{height:44px}.fastnote{bottom:60px}}
+
+/* softer palette and the microbe background (outside the dish). Static tiles; one optional slow drift layer, off for reduced motion. */
+:root{--paper:#efe5cc;--paper2:#e6d9bb;--ink:#3a2f24;--ink2:#6b5e4c;--rule:#c9b996;--rust:#b0532a;--moss:#56613d;--line:rgba(58,47,36,.35)}
+html{background:#e7dabd}
+body{background-color:#e7dabd;background-image:url("data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="360" height="360" fill="none" stroke-linecap="round"%3E %3Cg stroke="%236b5a3e" stroke-opacity=".32" stroke-width="1.3"%3E %3Cellipse cx="60" cy="70" rx="26" ry="15" transform="rotate%28-20 60 70%29"/%3E%3Ccircle cx="54" cy="68" r="4"/%3E %3Cpath d="M34 78c-8 4-14 2-20 6"/%3E %3Ccircle cx="250" cy="60" r="18"/%3E%3Ccircle cx="250" cy="60" r="11"/%3E%3Cpath d="M250 42v36M232 60h36M237 47l26 26M263 47l-26 26" stroke-opacity=".35"/%3E %3Cellipse cx="300" cy="250" rx="30" ry="10" transform="rotate%2835 300 250%29"/%3E%3Cpath d="M280 236l40 28" stroke-opacity=".22"/%3E %3Cpath d="M120 330c0-30 0-40 20-60m-20 60c0-24-14-36-34-44m54-16c12-12 30-14 44-10m-44 10c4-18 0-30-10-40" stroke="%2356613d" stroke-opacity=".34"/%3E %3Ccircle cx="174" cy="260" r="2.5" fill="%2356613d" fill-opacity=".35" stroke="none"/%3E%3Ccircle cx="130" cy="230" r="2.5" fill="%2356613d" fill-opacity=".35" stroke="none"/%3E%3Ccircle cx="86" cy="286" r="2.5" fill="%2356613d" fill-opacity=".35" stroke="none"/%3E %3Cpath d="M190 150c10-8 24-8 34 0s24 8 34 0" stroke="%23a8742c" stroke-opacity=".32"/%3E %3Cellipse cx="40" cy="200" rx="9" ry="14"/%3E%3Ccircle cx="330" cy="140" r="6"/%3E%3Ccircle cx="160" cy="40" r="3"/%3E %3C/g%3E%3C/svg%3E");background-size:360px 360px;color:var(--ink);font-weight:380}
+body:before{content:"";position:fixed;inset:-260px;z-index:-1;pointer-events:none;background-image:url("data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="520" height="520" fill="none" stroke="%237a5f3a" stroke-opacity=".26" stroke-width="1.2"%3E %3Cellipse cx="90" cy="120" rx="14" ry="8" transform="rotate%2830 90 120%29"/%3E%3Cellipse cx="380" cy="300" rx="18" ry="9" transform="rotate%28-25 380 300%29"/%3E %3Ccircle cx="250" cy="450" r="7"/%3E%3Ccircle cx="460" cy="80" r="5"/%3E%3Cpath d="M76 128c-6 4-12 4-16 8M362 306c-6 3-10 8-16 9"/%3E%3C/svg%3E");background-size:520px 520px;animation:pdrift 140s linear infinite;will-change:transform}
+@keyframes pdrift{to{transform:translate3d(260px,-260px,0)}}
+@media (prefers-reduced-motion:reduce){body:before{animation:none}}
+h1,h2,h3,.mark .title{color:#4a3c2d;font-weight:400}
+.masthead{border-bottom-color:var(--line)}
+.ghost,.primary,.link,button,input{border-radius:6px}
+.ghost{border-color:var(--line);color:var(--ink)}.ghost:hover{border-color:var(--ink)}
+.primary{background:#4a3c2d;border-color:#4a3c2d}
+.ledger dt,.fig,.block h2,.mono,.node .br,.hero .kicker,.gstep,.zcard .zk,.zlegend p,.wph{letter-spacing:.05em!important;text-transform:none!important;font-size:12px}
+.guide .card,#releaseDlg .card{background:#f4ecd6;border-radius:10px;border-color:var(--line)!important;box-shadow:0 10px 40px rgba(58,47,36,.18)}
+.cs5 li{border-top-color:rgba(58,47,36,.18)!important}.cs5 .ck{border-color:var(--ink2)!important}.cs5 li.done .ck{background:#56613d!important;border-color:#56613d!important}
+:root{--rust:#9a4421}
+.guide{background:rgba(58,47,36,.32)}
+.guide .card{outline-color:rgba(58,47,36,.25)!important}

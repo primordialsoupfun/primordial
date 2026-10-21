@@ -5,7 +5,7 @@
 // Limits: one claim per wallet and per X account, lifetime. First CLAIM_MAX wallets. Daily X API spend cap. The bearer token is read from env and never logged.
 const crypto=require('crypto');
 const C={OPEN:process.env.CLAIM_OPEN==='1',TWEET:process.env.CAMPAIGN_TWEET_ID||'',MAX:+process.env.CLAIM_MAX||500,
-  MIN_AGE_DAYS:+process.env.X_MIN_AGE_DAYS||30,MIN_FOLLOWERS:+(process.env.X_MIN_FOLLOWERS||25),
+  MIN_AGE_DAYS:+process.env.X_MIN_AGE_DAYS||30,MIN_FOLLOWERS:+(process.env.X_MIN_FOLLOWERS||5),
   POLL_S:+process.env.CLAIM_POLL_S||60,DAILY_USD:+(process.env.X_DAILY_SPEND_USD||2),
   POST_USD:0.005,USER_USD:0.010, // X pay-per-use read prices (posts, users), per resource returned
   BATCH:15,PENDING_H:24,MOCK:process.env.X_MOCK_FILE||'',
