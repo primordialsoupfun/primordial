@@ -10,8 +10,8 @@ const C={OPEN:process.env.CLAIM_OPEN==='1',TWEET:process.env.CAMPAIGN_TWEET_ID||
   POST_USD:0.005,USER_USD:0.010, // X pay-per-use read prices (posts, users), per resource returned
   BATCH:15,PENDING_H:24,MOCK:process.env.X_MOCK_FILE||'',
   HANDLE:(process.env.CAMPAIGN_X_HANDLE||'primordialfun').replace(/[^A-Za-z0-9_]/g,'').slice(0,15),
-  COPY:process.env.CAMPAIGN_COPY||'I just released a microbe into the Primordial dish. Neural-net creatures that eat, split and evolve on their own. My claim code: {code}',
-  REPLY:process.env.CAMPAIGN_REPLY_COPY||'Count my microbe in. Claim code: {code}'};
+  COPY:process.env.CAMPAIGN_COPY||'First 500 Solana wallets get a free microbe in the Soup, the first shared petri dish. My code: {code} Claim yours at primordialsoup.fun/claim',
+  REPLY:process.env.CAMPAIGN_REPLY_COPY||'First 500 Solana wallets. Count my microbe in. My code: {code} primordialsoup.fun/claim'};
 // Wallet binding: the player signs this plain message (no transaction, no fee). Verified with Node's built-in Ed25519.
 const bindMsg=w=>`Primordial free microbe claim\nBind a claim code to wallet ${w}\nThis is a signature only. It is not a transaction and costs nothing.`;
 function verifySig(wallet,sigB58){try{const bs58=require('bs58');const dec=(bs58.default||bs58).decode;const pk=Buffer.from(dec(wallet)),sig=Buffer.from(String(sigB58||''),'base64');
@@ -20,10 +20,11 @@ function verifySig(wallet,sigB58){try{const bs58=require('bs58');const dec=(bs58
 function init(ledger){ledger.claims=ledger.claims||{codes:{},byCode:{},pending:{},granted:{},xUsed:{},reasons:{},spend:{},calls:0,count:0};return ledger.claims;}
 const day=()=>new Date().toISOString().slice(0,10);
 const isOpen=()=>C.OPEN&&!!C.TWEET;
+const codesOpen=()=>C.OPEN; // partial open: wallet binding and codes before the launch post exists; X checks stay off until CAMPAIGN_TWEET_ID is set
 function status(cl,wallet){const g=cl.granted[wallet];
-  return {open:isOpen(),max:C.MAX,claimed:cl.count,remaining:Math.max(0,C.MAX-cl.count),soldOut:cl.count>=C.MAX,tweet:C.TWEET||null,minAgeDays:C.MIN_AGE_DAYS,minFollowers:C.MIN_FOLLOWERS,handle:C.HANDLE||null,bindMsg:wallet?bindMsg(wallet):null,copy:C.COPY,replyCopy:C.REPLY,
-    code:wallet&&isOpen()?cl.codes[wallet]||null:null,pending:!!(wallet&&cl.pending[wallet]),granted:!!g,used:!!(g&&g.used),reason:wallet?cl.reasons[wallet]||null:null};}
-function issue(cl,wallet,sig){if(!isOpen())throw new Error('Free microbe claim opens at launch.');
+  return {open:isOpen(),codesOpen:codesOpen(),max:C.MAX,claimed:cl.count,remaining:Math.max(0,C.MAX-cl.count),soldOut:cl.count>=C.MAX,tweet:C.TWEET||null,minAgeDays:C.MIN_AGE_DAYS,minFollowers:C.MIN_FOLLOWERS,handle:C.HANDLE||null,bindMsg:wallet?bindMsg(wallet):null,copy:C.COPY,replyCopy:C.REPLY,
+    code:wallet&&codesOpen()?cl.codes[wallet]||null:null,pending:!!(wallet&&cl.pending[wallet]),granted:!!g,used:!!(g&&g.used),reason:wallet?cl.reasons[wallet]||null:null};}
+function issue(cl,wallet,sig){if(!codesOpen())throw new Error('Free microbe claim opens at launch.');
   if(!cl.codes[wallet]&&!verifySig(wallet,sig))throw new Error('Sign the message in your wallet to get your code.');
   if(cl.granted[wallet])return cl.codes[wallet];if(cl.count>=C.MAX)throw new Error('All free microbes have been claimed.');
   if(!cl.codes[wallet]){let c;do{c='SOUP'+crypto.randomBytes(4).toString('hex').toUpperCase().slice(0,6);}while(cl.byCode[c]);cl.codes[wallet]=c;cl.byCode[c]=wallet;}
@@ -56,5 +57,5 @@ async function poll(cl,save){if(!isOpen())return;const now=Date.now();
   save();}
 function consume(cl,wallet){const g=cl.granted[wallet];if(!isOpen())throw new Error('Free microbe claim opens at launch. First 500 Solana wallets.');
   if(!g)throw new Error('Claim your free microbe first: share the campaign post on X with your code.');if(g.used)throw new Error('Your free microbe has already been released.');return g;}
-function publicStats(cl){return {open:isOpen(),max:C.MAX,claimed:cl.count,remaining:Math.max(0,C.MAX-cl.count),pending:Object.keys(cl.pending).length,calls:cl.calls,spendToday:+(cl.spend[day()]||0).toFixed(3)};}
+function publicStats(cl){return {open:isOpen(),codesOpen:codesOpen(),max:C.MAX,claimed:cl.count,remaining:Math.max(0,C.MAX-cl.count),pending:Object.keys(cl.pending).length,calls:cl.calls,spendToday:+(cl.spend[day()]||0).toFixed(3)};}
 module.exports={C,bindMsg,verifySig,init,status,issue,check,poll,consume,publicStats,isOpen};

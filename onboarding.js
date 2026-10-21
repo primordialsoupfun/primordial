@@ -20,24 +20,28 @@ function mark(k){const d=done();d[k]=1;localStorage.setItem(DK,JSON.stringify(d)
 function paint(){const d=done();for(let k=1;k<=5;k++)$('cs'+k).classList.toggle('done',!!(k===1?st&&st.code:k===5?st&&st.granted:d[k]));}
 const fill=(t,c)=>String(t||'').replace('{code}',c||'');
 function render(){if(!st)return;$('clAge').textContent=st.minAgeDays;$('clFol').textContent=st.minFollowers;const h=st.handle||'primordialfun';$('clHandle').textContent='@'+h;
-  const open=st.open&&!(st.soldOut&&!st.granted),has=!!st.code,tw=st.tweet;
-  $('clClosed').hidden=st.open;$('clKicker').textContent=st.open?`${st.remaining} of ${st.max} free microbes left`:'Free microbe, opens at launch';
+  const open=st.open&&!(st.soldOut&&!st.granted),pre=!!st.codesOpen&&!(st.soldOut&&!st.granted),has=!!st.code,tw=st.tweet;
+  $('clClosed').hidden=st.open||pre;$('clKicker').textContent=st.open?`${st.remaining} of ${st.max} free microbes left`:'Free microbe, opens at launch';
   if(st.soldOut&&!st.granted)$('clKicker').textContent='All free microbes claimed';
   $('clFollow').href='https://x.com/intent/follow?screen_name='+encodeURIComponent(h);
   if(tw){$('clLike').href='https://x.com/intent/like?tweet_id='+tw;
     $('clPost').href='https://x.com/intent/post?text='+encodeURIComponent(fill(st.copy,st.code))+'&url='+encodeURIComponent('https://x.com/'+h+'/status/'+tw);
     $('clReply').href='https://x.com/intent/post?in_reply_to='+tw+'&text='+encodeURIComponent(fill(st.replyCopy,st.code));}
   const en=(id,on)=>{const e=$(id);if(e.tagName==='BUTTON')e.disabled=!on;else e.classList.toggle('dis',!on);};
-  en('clCode',open&&!has);en('clPost',open&&has);en('clFollow',open);en('clLike',open&&!!tw);en('clReply',open&&has);en('clCheck',open&&has&&!st.granted);
-  $('clCodeOut').textContent=st.code||'';paint();
-  if(!st.open){$('dlgGo').hidden=true;$('clNameRow').hidden=true;note('Opens at launch. Buttons switch on when the claim opens.');return;}
+  en('clCode',pre&&!has);en('clPost',open&&has);en('clFollow',pre||open);en('clLike',open&&!!tw);en('clReply',open&&has);en('clCheck',open&&has&&!st.granted);
+  $('clCodeOut').textContent=st.code||'';document.querySelectorAll('.cs5 .wait').forEach(e=>e.hidden=!(pre&&!tw));$('clCode').hidden=has;if(pre&&!st.open)$('clKicker').textContent=has?'Your code is ready':'Free microbe, sign up now';paint();
+  if(!st.open){$('dlgGo').hidden=true;$('clNameRow').hidden=true;note(pre?(has?'Your code is saved to your wallet. Post on X, Like, Reply and Check open when the launch post is live.':'Connect and sign now to get your code. Post on X, Like, Reply and Check open when the launch post is live.'):'Opens at launch. Buttons switch on when the claim opens.');return;}
   if(st.soldOut&&!st.granted){$('clNameRow').hidden=true;$('dlgGo').hidden=true;note(`All ${st.max} free microbes have been claimed. You can still release one at today's price from the Intervene panel.`);return;}
   const ready=st.granted&&!st.used;$('clNameRow').hidden=!ready;$('dlgGo').hidden=!ready;
   note(st.error||st.reason||(st.used?'Your free microbe is already in the dish.':ready?'Confirmed. Name your microbe and release it.':st.pending?'Looking for your post. This can take a few minutes. You can close this window and come back.':''));}
 ['clPost','clFollow','clLike','clReply'].forEach((id,i)=>$(id).addEventListener('click',()=>{if(id==='clLike'||id==='clReply')mark(4);else mark(i===0?2:3);}));
 $('ctaRelease').onclick=async()=>{dlg.hidden=false;await api('');};
+if(location.pathname==='/claim'){$('dlgCancel').textContent='See the live dish';const h=document.querySelector('#releaseDlg h2');h.innerHTML='<span style="display:block;font-size:.62em;font-style:normal;letter-spacing:.08em;color:#a4472b">FIRST 500 SOLANA WALLETS</span>The first shared petri dish. Claim a free microbe.';h.insertAdjacentHTML('afterend','<p class="muted small">Still testing the best survival model. Opening soon.</p>');}
+if(new URLSearchParams(location.search).get('claim')||location.pathname==='/claim')setTimeout(()=>$('ctaRelease').click(),800);
 $('dlgCancel').onclick=()=>{dlg.hidden=true;};
-async function needWallet(){const p=window.__prim;if(!p)return false;if(p.wallet())return true;const ok=await p.connect();if(!ok)note('No Solana wallet found. Install Phantom or Solflare, then try again.');return !!ok;}
+const inj=()=>window.phantom&&window.phantom.solana||window.solflare||window.solana;
+async function needWallet(){const p=window.__prim;if(!p)return false;if(p.wallet())return true;
+  if(!inj()&&/iPhone|iPad|Android/i.test(navigator.userAgent)){location.href='https://phantom.app/ul/browse/'+encodeURIComponent(location.origin+'/claim')+'?ref='+encodeURIComponent(location.origin);return false;}const ok=await p.connect();if(!ok)note('No Solana wallet found. Install Phantom or Solflare, then try again.');return !!ok;}
 $('clCode').onclick=async()=>{if(!(await needWallet()))return;const w=window.__prim.wallet();const g=await (await fetch('/api/claim?wallet='+encodeURIComponent(w))).json();
   const pv=window.phantom&&window.phantom.solana||window.solflare||window.solana;if(!pv||!pv.signMessage){note('Your wallet cannot sign messages. Try Phantom or Solflare.');return;}
   try{const r=await pv.signMessage(new TextEncoder().encode(g.bindMsg),'utf8');const sg=r.signature||r;let b='';for(const x of sg)b+=String.fromCharCode(x);
