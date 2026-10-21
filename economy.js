@@ -1,7 +1,7 @@
 'use strict';
 // Survival economy (server side only; the deterministic sim is not involved except the newborn shield flag on release events).
 // Pool inflows: 40% of intervention fees (and 70% of creator fees once a token exists). Payouts: 50% of the pool per day, paid hourly.
-// Hourly yield (85%) is split by (creature-seconds)^0.6 ( alive this hour) per released lineage; free releases weigh 1/4 and together take at most 10%.
+// Hourly yield (85%) is split by (creature-seconds alive this hour)^1.0 since v5 (0.6 before) per released lineage; free releases weigh 1/4 and together take at most 10%.
 // A 15% slice accrues to a season bonus paid 50/30/20 to the top three lineages by season creature-seconds, minimum age 2 hours.
 const E={
   HZ:+process.env.TICK_HZ||30,
@@ -30,7 +30,7 @@ function accrue(eco,W){const cnt=new Map();for(const k of W.c){const ro=W.specie
     // territory: average zones held over the hour lifts the hourly yield weight by 5% per zone, at most 3 zones. The daily top-3 bonus ignores zones.
     const z=W.zonesOf?Math.min(E.ZONE_MAX,W.zonesOf(+r)):0;eco.hz[r]=(eco.hz[r]||0)+z;eco.hs[r]=(eco.hs[r]||0)+1;}}
 const zoneMult=(eco,r)=>1+E.ZONE_BONUS*((eco.hz&&eco.hs&&eco.hs[r])?eco.hz[r]/eco.hs[r]:0);
-// weight = creature-seconds to the power 0.6: diminishing returns (tuned in econ/REPORT.md)
+// weight = creature-seconds to the power 1.0 since v5 (0.6 before, see econ/SURVIVAL_NOTES.md)
 function weights(eco){const ent=[];let paid=0,free=0;for(const r in eco.hour){const w=Math.pow(eco.hour[r],v5(eco)?E.WEIGHT_POW_V5:E.WEIGHT_POW)*zoneMult(eco,r);if(eco.free[r]){free+=w*E.FREE_WEIGHT;ent.push([r,w*E.FREE_WEIGHT,1]);}else{paid+=w;ent.push([r,w,0]);}}
   let fs=1;if(free>0&&free/(paid+free)>E.FREE_CAP)fs=paid>0?(E.FREE_CAP*paid/(1-E.FREE_CAP))/free:1;
   const out=ent.map(([r,w,f])=>[r,f?w*fs:w]);const tot=out.reduce((a,b)=>a+b[1],0);return {out,tot};}

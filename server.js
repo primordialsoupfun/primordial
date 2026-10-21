@@ -26,7 +26,7 @@ function stepWorld(){const evs=byTick.get(W.tick)||[];const before=W.epochs.leng
   if(fresh){eco.lastTick=W.tick;const r=Eco.onTick(eco,ledger,W);
     if(r.s){ledger.payouts.push({epoch:eco.seasons.length,tick:W.tick,winners:r.s.map(w=>({place:w.place,name:w.name,owner:w.owner,sp:w.sp})),txs:r.s.map(w=>({place:w.place,name:w.name,owner:w.owner,sp:w.sp,lamports:w.lamports}))});}
     if(r.h||r.s)broadcast('chain',{kind:'yield',tick:W.tick});}
-  if(W.tick%300===0)snapshot={tick:W.tick,state:JSON.stringify(W)};
+  if(W.tick%300===0)snapshot={tick:W.tick,state:JSON.stringify(W.toLite())};
   if(W.tick%500===0)broadcast('hash',{t:W.tick,h:W.hash()});
   if(W.tick%COMMIT_TICKS===0&&live)commit(W.tick,W.hash());
 }
@@ -47,15 +47,17 @@ if(ledger.cfg.v4From==null){ledger.cfg.v4From=Math.max(ledger.cfg.v3From,Math.ce
 // v5 rule (head start only below 100 creatures; economy exponent 1.0 and price target 1.0x) from a fixed future tick.
 // cfg.v5From was recorded by an earlier deploy before the v5 code shipped and is inert; the v5 rule uses v5bFrom.
 if(ledger.cfg.v5bFrom==null){ledger.cfg.v5bFrom=Math.max(ledger.cfg.v5From||ledger.cfg.v4From,Math.ceil((W.tick+LEAD+900)/150)*150);save();}W.cfg.v5bFrom=ledger.cfg.v5bFrom;eco.v5bFrom=ledger.cfg.v5bFrom;
-snapshot={tick:W.tick,state:JSON.stringify(W)};
+snapshot={tick:W.tick,state:JSON.stringify(W.toLite())};
 
 // SSE
 
 function broadcast(type,data){const s=`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`;for(const r of clients)r.write(s);}
 setInterval(()=>{stepWorld();if(W.tick%15===0){broadcast('tick',{t:W.tick});ledger.lastTick=W.tick;}},1000/HZ);
 setInterval(save,5000);
-setInterval(()=>{if(!snapshot)return;const tmp=SNAP+'.tmp';fs.writeFileSync(tmp,`{"seed":${ledger.seed},"events":${ledger.events.length},"tick":${snapshot.tick},"state":${snapshot.state}}`);fs.renameSync(tmp,SNAP);},60000);
-setTimeout(()=>{try{fs.writeFileSync(SNAP,`{"seed":${ledger.seed},"events":${ledger.events.length},"tick":${snapshot.tick},"state":${snapshot.state}}`);}catch(e){}},5000);
+// Disk checkpoint keeps the full state (every genome) so a restart resumes exactly.
+function writeCkpt(){const tmp=SNAP+'.tmp';fs.writeFileSync(tmp,`{"seed":${ledger.seed},"events":${ledger.events.length},"tick":${W.tick},"state":${JSON.stringify(W)}}`);fs.renameSync(tmp,SNAP);}
+setInterval(()=>{try{writeCkpt();}catch(e){console.error('checkpoint write failed',e.message);}},60000);
+setTimeout(()=>{try{writeCkpt();}catch(e){}},5000);
 function schedule(ev){ev.at=W.tick+LEAD;ev.n=ledger.events.length;ledger.events.push(ev);if(!byTick.has(ev.at))byTick.set(ev.at,[]);byTick.get(ev.at).push(ev);save();broadcast('event',ev);return ev;}
 // ---- chain
 let treasury,mintInfo,MINT;
@@ -83,7 +85,10 @@ const parseMemo=tx=>{for(const ix of tx.transaction.message.instructions){if(ix.
 async function verify(sig){
   if(!live)throw new Error('payments are paused until the treasury is funded');
   if(typeof sig!=='string'||sig.length<60||sig.length>100)throw new Error('bad signature');
-  if(ledger.used[sig])throw new Error('signature already used');
+  if(ledger.used[sig]||inFlight.has(sig))throw new Error('signature already used');
+  inFlight.add(sig);try{return await verifyInner(sig);}finally{inFlight.delete(sig);}}
+const inFlight=new Set();
+async function verifyInner(sig){
   let tx=null;for(let i=0;i<20&&!tx;i++){tx=await conn.getParsedTransaction(sig,{commitment:'confirmed',maxSupportedTransactionVersion:0});if(!tx)await new Promise(r=>setTimeout(r,500));}
   if(!tx)throw new Error('transaction not found or not confirmed');
   if(tx.meta.err)throw new Error('transaction failed on chain');
