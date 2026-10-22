@@ -33,7 +33,15 @@ function stepWorld(){const evs=byTick.get(W.tick)||[];const before=W.epochs.leng
 // fast-forward to wall clock position on boot (simple: replay to last known tick)
 // Fast restart: resume from the last checkpoint on disk instead of replaying from tick 0.
 const SNAP=DATA+'/snapshot.json';
-try{if(fs.existsSync(SNAP)){let sn=JSON.parse(fs.readFileSync(SNAP,'utf8'));if(sn.seed===ledger.seed&&sn.events<=ledger.events.length){const st=sn.state;sn=null;W=P.World.fromJSON(st);
+const SNAPL=DATA+'/snapshot.ndjson';
+// Line checkpoint: first line is the header and world without species, then one species per line. Read in chunks so boot never holds the whole file.
+function readCkptLines(){const fd=fs.openSync(SNAPL,'r');const buf=Buffer.alloc(1<<22);let rest='',w=null,hdr=null,n,end=false;
+  try{while((n=fs.readSync(fd,buf,0,buf.length,null))>0){const parts=(rest+buf.toString('utf8',0,n)).split('\n');rest=parts.pop();
+    for(const ln of parts){if(!ln)continue;if(ln==='"end"'){end=true;continue;}if(!hdr){hdr=JSON.parse(ln);if(hdr.seed!==ledger.seed||hdr.events>ledger.events.length)return null;w=P.World.fromBase(hdr.state);hdr.state=null;}else P.World.addSp(w,JSON.parse(ln));}}
+    if(!end||!w)throw new Error('line checkpoint incomplete');}finally{fs.closeSync(fd);}return w;}
+let resumed=false;
+try{if(fs.existsSync(SNAPL)){const w=readCkptLines();if(w){W=w;resumed=true;console.log('resumed from line checkpoint at tick',W.tick);}}}catch(e){console.error('line checkpoint unreadable',e.message);W=new P.World(ledger.seed,ledger.cfg);}
+if(!resumed)try{if(fs.existsSync(SNAP)){let sn=JSON.parse(fs.readFileSync(SNAP,'utf8'));if(sn.seed===ledger.seed&&sn.events<=ledger.events.length){const st=sn.state;sn=null;W=P.World.fromJSON(st);
   console.log('resumed from checkpoint at tick',W.tick);}}}catch(e){console.error('checkpoint unreadable, replaying',e.message);W=new P.World(ledger.seed,ledger.cfg);}
 const target=ledger.lastTick||0;while(W.tick<target)stepWorld();
 // PvP (territory, hunting feed) switches on at a fixed tick recorded in the ledger, so older history replays unchanged.
@@ -56,7 +64,11 @@ setInterval(()=>{stepWorld();if(W.tick%15===0){broadcast('tick',{t:W.tick});ledg
 setInterval(save,5000);
 // Disk checkpoint keeps the full state (every genome) so a restart resumes exactly.
 // Written in chunks so the full state is never held as one string; the file format is unchanged.
-function writeCkpt(){const tmp=SNAP+'.tmp';const fd=fs.openSync(tmp,'w');try{const base=JSON.stringify(W.baseJSON());
+function writeCkpt(){const tmp=SNAPL+'.tmp';const fd=fs.openSync(tmp,'w');try{
+  fs.writeSync(fd,JSON.stringify({seed:ledger.seed,events:ledger.events.length,tick:W.tick,state:W.baseJSON()})+'\n');
+  const S=W.species;for(let i=0;i<S.length;i+=2000){let t='';for(let j=i;j<Math.min(S.length,i+2000);j++)t+=JSON.stringify(P.World.spJSON(S[j]))+'\n';fs.writeSync(fd,t);}
+  fs.writeSync(fd,'"end"\n');}finally{fs.closeSync(fd);}fs.renameSync(tmp,SNAPL);}
+function writeCkptOld(){const tmp=SNAP+'.tmp';const fd=fs.openSync(tmp,'w');try{const base=JSON.stringify(W.baseJSON());
   fs.writeSync(fd,`{"seed":${ledger.seed},"events":${ledger.events.length},"tick":${W.tick},"state":${base.slice(0,-1)}${base.length>2?',':''}"species":[`);
   const S=W.species;for(let i=0;i<S.length;i+=2000){let t='';for(let j=i;j<Math.min(S.length,i+2000);j++)t+=(j?',':'')+JSON.stringify(P.World.spJSON(S[j]));fs.writeSync(fd,t);}
   fs.writeSync(fd,']}}');}finally{fs.closeSync(fd);}fs.renameSync(tmp,SNAP);}
