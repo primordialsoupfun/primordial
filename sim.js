@@ -169,9 +169,21 @@ class World{
   toJSON(){const o=this.baseJSON();o.species=this.species.map(World.spJSON);return o;}
   // Client snapshot: long-dead wild species (no living members, not a lineage root) are sent without genome, and small ones as a compact row.
   // Their genome is only read by the rare emergency respawn (fewer than 60 organisms); a client that hits it fails the hash check and reloads.
-  toLite(){const o=this.baseJSON();o.species=this.species.map(s=>{if(s.count>0||s.root===s.id||s.released)return Object.assign({},s,{g:f32enc(s.g)});
-      if(s.peak<6)return [s.parent,s.born,s.died,s.peak,s.maxGen,s.root,s.col[0],s.col[1],s.col[2],s.disastersSurvived];const x=Object.assign({},s);delete x.g;return x;});return o;}
-  static fromJSON(o){const src=o.species;delete o.species;const w=World.fromBase(o);src.forEach((s,id)=>{src[id]=null;World.addSp(w,s);});return w;}
+  // Client snapshot v2. Gameplay-relevant state is identical; long-dead wild species (no members, not a root, not released) are inert in the sim
+  // (only species.length and the rare <60 emergency respawn read them), so they ship as flat number rows instead of objects:
+  // kind string per id: 2 = full object, 1 = dead row (10 ints, delta coded), 0 = stub (peak<6: parent and root only).
+  toLite(){const o=this.baseJSON();const kind=[],full=[],d=[],st=[];let pb=0;
+    for(const s of this.species){const i=s.id;if(s.count>0||s.root===s.id||s.released){kind.push(2);full.push(Object.assign({},s,{g:f32enc(s.g)}));continue;}
+      if(s.peak<6){kind.push(0);st.push(i-s.parent,s.root);continue;}
+      kind.push(1);d.push(i-s.parent,s.born-pb,s.died-s.born,s.peak,s.maxGen,s.root,s.col[0],s.col[1],s.col[2],s.disastersSurvived);pb=s.born;}
+    o.species={v:2,kind:kind.join(''),full,d,st};return o;}
+  static fromLite2(src){const out=[];let fi=0,di=0,si=0,pb=0;const K=src.kind,F=src.full,D=src.d,S=src.st;
+    for(let i=0;i<K.length;i++){const k=K.charCodeAt(i)-48;
+      if(k===2)out.push(F[fi++]);
+      else if(k===1){const r=D.slice(di,di+10);di+=10;const born=pb+r[1];pb=born;out.push([i-r[0],born,born+r[2],r[3],r[4],r[5],r[6],r[7],r[8],r[9]]);}
+      else{const p=i-S[si],root=S[si+1];si+=2;const R=out[root];const c=R?(Array.isArray(R)?[R[6],R[7],R[8]]:R.col):[0,0,0];out.push([p,0,0,1,0,root,c[0],c[1],c[2],0]);}}
+    return out;}
+  static fromJSON(o){const src=o.species&&o.species.v===2?World.fromLite2(o.species):o.species;delete o.species;const w=World.fromBase(o);src.forEach((s,id)=>{src[id]=null;World.addSp(w,s);});return w;}
   // Build a world from everything except species; species are then added one by one with addSp (lets a checkpoint load as a stream).
   static fromBase(o){const w=Object.create(World.prototype);Object.assign(w,o);w.r=new RNG(0);w.r.a=o.r;
     w.c=o.c.map(k=>Object.assign({},k,{g:f32dec(k.g),act:f32dec(k.act)}));w.species=[];return w;}
