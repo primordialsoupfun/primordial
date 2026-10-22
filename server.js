@@ -89,7 +89,7 @@ function schedule(ev){ev.at=W.tick+LEAD;ev.n=ledger.events.length;ledger.events.
 let treasury,mintInfo,MINT;
 async function commit(t,h){try{const sig=await C.send([C.memoIx(`primordial:commit:${t}:${h}:${ledger.events.length}`,treasury.publicKey)],[treasury]);ledger.commits.push({t,h,sig});broadcast('chain',{kind:'commit',t,h,sig});}catch(e){console.error('commit failed',e.message);}}
 // Pays accrued survival yield and season bonuses. Balances under 0.001 SOL wait until they grow.
-let paying=false;const claimRl=new Map();
+let paying=false,snapCache=null;const zlib=require('zlib');const claimRl=new Map();
 async function payout(){if(!live||paying)return;paying=true;try{
   eco.payPending=eco.payPending||[];
   // Reconcile payouts whose outcome was unknown: landed -> done; expired and not landed -> credit back.
@@ -200,7 +200,10 @@ http.createServer(async(req,res)=>{
   const u=url.parse(req.url,true),p=u.pathname;
   try{
   if(p==='/api/stream'){res.writeHead(200,{'content-type':'text/event-stream','cache-control':'no-cache',connection:'keep-alive'});res.write(`event: tick\ndata: ${JSON.stringify({t:W.tick})}\n\n`);clients.add(res);req.on('close',()=>clients.delete(res));return;}
-  if(p==='/api/snapshot'){const evs=ledger.events.filter(e=>e.at>=snapshot.tick);res.writeHead(200,{'content-type':'application/json'});return res.end(`{"tick":${snapshot.tick},"serverTick":${W.tick},"events":${JSON.stringify(evs)},"state":${snapshot.state}}`);}
+  if(p==='/api/snapshot'){ // launch traffic: one gzipped body per snapshot+event count, shared by every request (no per-request 5 MB string)
+    const key=snapshot.tick+':'+ledger.events.length;if(!snapCache||snapCache.key!==key){const evs=ledger.events.filter(e=>e.at>=snapshot.tick);
+      snapCache={key,gz:zlib.gzipSync(`{"tick":${snapshot.tick},"serverTick":${W.tick},"events":${JSON.stringify(evs)},"state":${snapshot.state}}`,{level:6})};}
+    const gz=/\bgzip\b/.test(req.headers['accept-encoding']||'');res.writeHead(200,{'content-type':'application/json','cache-control':'no-store',...(gz?{'content-encoding':'gzip',vary:'accept-encoding'}:{})});return res.end(gz?snapCache.gz:zlib.gunzipSync(snapCache.gz));}
   if(p==='/api/config')return json(res,{rpc:'/api/rpc',cluster:C.CLUSTER,treasury:treasury.publicKey.toBase58(),mint:MINT?MINT.toBase58():null,chainReady:live,prices:PRICES,eco:Eco.publicView(eco,ledger),claim:Claims.publicStats(claims),foodBurn:FOOD_BURN,traitBurn:P.TRAIT_BURN,cfg:CFG,hz:HZ,seed:ledger.seed,ticker:TICKER,publicUrl:PUBLIC_URL,tree:P.TREE});
   if(p==='/api/ledger'){const L2=Object.assign({},ledger);delete L2.used;delete L2.events;L2.eventCount=ledger.events.length;L2.recent=ledger.events.slice(-30);L2.scores=W.scores().slice(0,10);L2.epochs=W.epochs.slice(-5);L2.eco=Eco.publicView(eco,ledger);delete L2.claims;L2.claim=Claims.publicStats(claims);delete L2.freeUsed;delete L2.freeUsed2;return json(res,L2);}
   if(p==='/api/claim'){const w=String(u.query.wallet||'');let ok=false;try{new web3.PublicKey(w);ok=true;}catch(e){}let reveal=false;
