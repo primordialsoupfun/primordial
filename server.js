@@ -89,17 +89,28 @@ function schedule(ev){ev.at=W.tick+LEAD;ev.n=ledger.events.length;ledger.events.
 let treasury,mintInfo,MINT;
 async function commit(t,h){try{const sig=await C.send([C.memoIx(`primordial:commit:${t}:${h}:${ledger.events.length}`,treasury.publicKey)],[treasury]);ledger.commits.push({t,h,sig});broadcast('chain',{kind:'commit',t,h,sig});}catch(e){console.error('commit failed',e.message);}}
 // Pays accrued survival yield and season bonuses. Balances under 0.001 SOL wait until they grow.
-let paying=false;
+let paying=false;const claimRl=new Map();
 async function payout(){if(!live||paying)return;paying=true;try{
+  eco.payPending=eco.payPending||[];
+  // Reconcile payouts whose outcome was unknown: landed -> done; expired and not landed -> credit back.
+  for(const pp of eco.payPending.slice()){try{const st=(await conn.getSignatureStatuses([pp.sig],{searchTransactionHistory:true})).value[0];
+    if(st&&!st.err&&st.confirmationStatus){eco.payPending.splice(eco.payPending.indexOf(pp),1);eco.sent.push({at:new Date().toISOString(),sig:pp.sig,n:pp.rec.length,lamports:pp.rec.reduce((a,b)=>a+b.lamports,0)});}
+    else if((st&&st.err)||(await conn.getBlockHeight())>pp.lvh){for(const r of pp.rec)eco.owed[r.owner]=(eco.owed[r.owner]||0)+r.lamports;eco.payPending.splice(eco.payPending.indexOf(pp),1);}}catch(e){}}
+  save();if(eco.payPending.length)return; // wait until every earlier payout is settled
   const due=Object.entries(eco.owed).filter(([o,l])=>l>=1e6).slice(0,6);if(!due.length)return;
   const ixs=[];const rec=[];for(const [o,l] of due){let to;try{to=new web3.PublicKey(o);}catch(e){delete eco.owed[o];continue;}ixs.push(web3.SystemProgram.transfer({fromPubkey:treasury.publicKey,toPubkey:to,lamports:l}));rec.push({owner:o,lamports:l});}
   if(!ixs.length)return;ixs.push(C.memoIx('primordial:yield:'+W.tick,treasury.publicKey));
-  const sig=await C.send(ixs,[treasury]);for(const r of rec){eco.owed[r.owner]-=r.lamports;}eco.sent.push({at:new Date().toISOString(),sig,n:rec.length,lamports:rec.reduce((a,b)=>a+b.lamports,0)});if(eco.sent.length>50)eco.sent.shift();save();broadcast('chain',{kind:'payout',sig});}
+  const {blockhash,lastValidBlockHeight}=await conn.getLatestBlockhash('confirmed');const tx=new web3.Transaction({feePayer:treasury.publicKey,blockhash,lastValidBlockHeight}).add(...ixs);tx.sign(treasury);
+  const sig=require('bs58').default?require('bs58').default.encode(tx.signature):require('bs58').encode(tx.signature);
+  // Debit first and persist, so a crash or a timeout after the tx lands can never pay twice.
+  for(const r of rec){eco.owed[r.owner]-=r.lamports;}const pp={sig,rec,lvh:lastValidBlockHeight};eco.payPending.push(pp);save();
+  await conn.sendRawTransaction(tx.serialize(),{maxRetries:5});await conn.confirmTransaction({signature:sig,blockhash,lastValidBlockHeight},'confirmed');
+  eco.payPending.splice(eco.payPending.indexOf(pp),1);eco.sent.push({at:new Date().toISOString(),sig,n:rec.length,lamports:rec.reduce((a,b)=>a+b.lamports,0)});if(eco.sent.length>50)eco.sent.shift();save();broadcast('chain',{kind:'payout',sig});}
   catch(e){console.error('payout failed',e.message);}finally{paying=false;}}
 setInterval(payout,+process.env.PAYOUT_INTERVAL_S*1000||300000);
 // Free microbe claim: verified X share (claims.js). Polls only while the claim is open and claims are pending.
 setInterval(()=>Claims.poll(claims,save),Claims.C.POLL_S*1000);
-async function burnJob(){
+async function burnJob(){if(!mintInfo)return;
   const lam=ledger.burnQueue;if(lam<=0)return;
   const tokens=BigInt(Math.floor(lam/L*MOCK_RATE*1e6)); // DRY RUN: no swap is executed; treasury test tokens stand in for bought-back tokens
   try{const sig=await spl.burn(conn,treasury,new web3.PublicKey(mintInfo.treasuryAta),MINT,treasury,tokens);
@@ -124,7 +135,7 @@ async function verifyInner(sig){
   const ixs=tx.transaction.message.instructions.concat(...(tx.meta.innerInstructions||[]).map(x=>x.instructions));
   for(const ix of ixs){if(!ix.parsed)continue;
     if(ix.program==='system'&&ix.parsed.type==='transfer'&&ix.parsed.info.destination===treasury.publicKey.toBase58()&&ix.parsed.info.source===payer)lam+=ix.parsed.info.lamports;
-    if(ix.program==='spl-token'&&(ix.parsed.type==='burn'||ix.parsed.type==='burnChecked')&&ix.parsed.info.mint===MINT.toBase58()&&ix.parsed.info.authority===payer)burned+=Number(ix.parsed.info.amount||ix.parsed.info.tokenAmount.amount)/1e6;}
+    if(ix.program==='spl-token'&&(ix.parsed.type==='burn'||ix.parsed.type==='burnChecked')&&MINT&&ix.parsed.info.mint===MINT.toBase58()&&ix.parsed.info.authority===payer)burned+=Number(ix.parsed.info.amount||ix.parsed.info.tokenAmount.amount)/1e6;}
   const ev={type:m.t,owner:payer,sig};
   const num=v=>typeof v==='number'&&isFinite(v)?Math.max(20,Math.min(880,v)):undefined;
   if(m.x!=null){ev.x=num(m.x);ev.y=num(m.y);}
@@ -190,11 +201,12 @@ http.createServer(async(req,res)=>{
   try{
   if(p==='/api/stream'){res.writeHead(200,{'content-type':'text/event-stream','cache-control':'no-cache',connection:'keep-alive'});res.write(`event: tick\ndata: ${JSON.stringify({t:W.tick})}\n\n`);clients.add(res);req.on('close',()=>clients.delete(res));return;}
   if(p==='/api/snapshot'){const evs=ledger.events.filter(e=>e.at>=snapshot.tick);res.writeHead(200,{'content-type':'application/json'});return res.end(`{"tick":${snapshot.tick},"serverTick":${W.tick},"events":${JSON.stringify(evs)},"state":${snapshot.state}}`);}
-  if(p==='/api/config')return json(res,{rpc:'/api/rpc',cluster:process.env.CLUSTER||(/127\.0\.0\.1|localhost/.test(C.RPC)?'localnet':'devnet'),treasury:treasury.publicKey.toBase58(),mint:MINT?MINT.toBase58():null,chainReady:live,prices:PRICES,eco:Eco.publicView(eco,ledger),claim:Claims.publicStats(claims),foodBurn:FOOD_BURN,traitBurn:P.TRAIT_BURN,cfg:CFG,hz:HZ,seed:ledger.seed,ticker:TICKER,publicUrl:PUBLIC_URL,tree:P.TREE});
+  if(p==='/api/config')return json(res,{rpc:'/api/rpc',cluster:C.CLUSTER,treasury:treasury.publicKey.toBase58(),mint:MINT?MINT.toBase58():null,chainReady:live,prices:PRICES,eco:Eco.publicView(eco,ledger),claim:Claims.publicStats(claims),foodBurn:FOOD_BURN,traitBurn:P.TRAIT_BURN,cfg:CFG,hz:HZ,seed:ledger.seed,ticker:TICKER,publicUrl:PUBLIC_URL,tree:P.TREE});
   if(p==='/api/ledger'){const L2=Object.assign({},ledger);delete L2.used;delete L2.events;L2.eventCount=ledger.events.length;L2.recent=ledger.events.slice(-30);L2.scores=W.scores().slice(0,10);L2.epochs=W.epochs.slice(-5);L2.eco=Eco.publicView(eco,ledger);delete L2.claims;L2.claim=Claims.publicStats(claims);delete L2.freeUsed;delete L2.freeUsed2;return json(res,L2);}
-  if(p==='/api/claim'){const w=String(u.query.wallet||'');let ok=false;try{new web3.PublicKey(w);ok=true;}catch(e){}
-    if(req.method==='POST'&&ok){try{const act=u.query.act;if(act==='code')Claims.issue(claims,w,u.query.sig);else if(act==='check')Claims.check(claims,w);save();}catch(e){return json(res,Object.assign(Claims.status(claims,w),{error:e.message}),400);}}
-    return json(res,Claims.status(claims,ok?w:''));}
+  if(p==='/api/claim'){const w=String(u.query.wallet||'');let ok=false;try{new web3.PublicKey(w);ok=true;}catch(e){}let reveal=false;
+    if(req.method==='POST'&&ok){const ip=String(req.headers['x-forwarded-for']||req.socket.remoteAddress||'').split(',')[0].trim();const now=Date.now();const r=(claimRl.get(ip)||[]).filter(t=>now-t<600000);if(r.length>=20)return json(res,{error:'Too many tries. Wait a few minutes.'},429);r.push(now);claimRl.set(ip,r);if(claimRl.size>50000)claimRl.clear();
+      try{const act=u.query.act;if(act==='code'){Claims.issue(claims,w,u.query.sig);reveal=true;}else if(act==='check')Claims.check(claims,w);save();}catch(e){return json(res,Object.assign(Claims.status(claims,w,false),{error:e.message}),400);}}
+    return json(res,Claims.status(claims,ok?w:'',reveal));}
   if(p==='/api/rpc'&&req.method==='POST'){let b='';for await(const ch of req){b+=ch;if(b.length>4096)break;}let j;try{j=JSON.parse(b);}catch(e){return json(res,{error:'bad json'},400);}
     const ok=['getLatestBlockhash','getSignatureStatuses','getBalance','getAccountInfo','getTokenAccountBalance'];const ip=req.headers['x-forwarded-for']||req.socket.remoteAddress;
     const now=Date.now();const r=rl.get(ip)||[];const recent=r.filter(t=>now-t<60000);if(recent.length>60)return json(res,{error:'rate limited'},429);recent.push(now);rl.set(ip,recent);
@@ -236,8 +248,9 @@ http.createServer(async(req,res)=>{
 }).listen(PORT,()=>console.log('primordial on http://localhost:'+PORT));
 treasury=C.load('treasury');
 // Chain setup never crashes the site. If the treasury is unfunded (devnet faucet limits), retry every 5 minutes.
-async function chainSetup(){try{await C.fund(treasury).catch(e=>console.error('airdrop failed:',e.message.slice(0,80)));mintInfo=await C.setupMint(treasury);MINT=new web3.PublicKey(mintInfo.mint);
-  live=true;console.log('chain ready, treasury',treasury.publicKey.toBase58(),'mint',mintInfo.mint);setInterval(burnJob,BURN_INTERVAL*1000);}
-  catch(e){console.error('chain setup pending (treasury needs devnet SOL):',e.message.slice(0,80));setTimeout(chainSetup,300000);}}
+async function chainSetup(){try{await C.fund(treasury).catch(e=>console.error('airdrop failed:',e.message.slice(0,80)));mintInfo=await C.setupMint(treasury);MINT=mintInfo?new web3.PublicKey(mintInfo.mint):null;
+  live=true;if(C.MAINNET&&!MINT)setTimeout(retryMint,60000);console.log('chain ready, treasury',treasury.publicKey.toBase58(),'mint',mintInfo?mintInfo.mint:'(SOUP_MINT not set yet)');if(!C.MAINNET||process.env.BURN_ENABLED==='1')setInterval(burnJob,BURN_INTERVAL*1000);}
+  catch(e){console.error('chain setup pending:',e.message.slice(0,80));setTimeout(chainSetup,300000);}}
+async function retryMint(){try{mintInfo=await C.setupMint(treasury);if(mintInfo){MINT=new web3.PublicKey(mintInfo.mint);console.log('mint set',mintInfo.mint);return;}}catch(e){console.error('mint check',e.message.slice(0,80));}setTimeout(retryMint,60000);}
 chainSetup();
 process.on('unhandledRejection',e=>console.error('unhandled',e&&e.message));

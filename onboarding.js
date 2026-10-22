@@ -15,7 +15,7 @@ if(localStorage.getItem(GK)!=='done'&&location.pathname!=='/claim'&&!new URLSear
 const dlg=$('releaseDlg');let st=null,editing=false,pollT=null;const signedNow=new Set();
 const note=t=>{$('dlgNote').textContent=t||'';};
 const me=()=>window.__prim&&window.__prim.wallet();
-async function api(act){const w=me();try{const r=await fetch('/api/claim?wallet='+encodeURIComponent(w||'')+(act?'&act='+act:''),{method:act?'POST':'GET'});st=await r.json();}catch(e){note('Network error. Try again.');return st;}render();return st;}
+async function api(act){const w=me();try{const r=await fetch('/api/claim?wallet='+encodeURIComponent(w||'')+(act?'&act='+act:''),{method:act?'POST':'GET'});st=await r.json();const CK='primordial.code.'+w;if(st&&w&&st.wallet===w){if(st.code)localStorage.setItem(CK,st.code);else if(localStorage.getItem(CK)){st.code=localStorage.getItem(CK);st.cardUrl='/c/'+st.code;}}}catch(e){note('Network error. Try again.');return st;}render();return st;}
 const SK=c=>'primordial.claimshared.'+c,shared=()=>!!(st&&st.code&&localStorage.getItem(SK(st.code)));
 const hm=t=>new Date(t).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
 function schedulePoll(on){clearTimeout(pollT);if(on)pollT=setTimeout(()=>{if(!dlg.hidden)api('');else schedulePoll(true);},15000);}
@@ -60,7 +60,7 @@ $('clWhat').onclick=()=>{const p=$('clWhatP'),on=p.hidden;p.hidden=!on;$('clWhat
 $('dlgCancel').onclick=()=>{dlg.hidden=true;};
 async function needWallet(){const p=window.__prim;if(!p)return false;if(p.wallet())return true;const ok=await p.connect();if(!ok)note('Choose a Solana wallet to continue.');return !!ok;}
 $('clCode').onclick=async()=>{if(!(await needWallet()))return;const w=me();let g;try{g=await (await fetch('/api/claim?wallet='+encodeURIComponent(w))).json();}catch(e){note('Network error. Try again.');return;}
-  if(g.code){st=g;render();return;}
+  if(!g.code&&localStorage.getItem('primordial.code.'+w)){g.code=localStorage.getItem('primordial.code.'+w);g.cardUrl='/c/'+g.code;}if(g.code){st=g;render();return;}
   const pv=window.__wallets.current();if(!pv||!pv.signMessage){note('Your wallet cannot sign messages. Try Phantom or Solflare.');return;}
   try{const r=await pv.signMessage(new TextEncoder().encode(g.bindMsg),'utf8');const sg=r.signature||r;let b='';for(const x of sg)b+=String.fromCharCode(x);
     await api('code&sig='+encodeURIComponent(btoa(b)));if(st&&st.code&&st.wallet===w){signedNow.add(w);render();}}catch(e){console.error('[claim] sign failed',e);note('Signature cancelled. Nothing was sent.');}};

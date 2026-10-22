@@ -24,16 +24,16 @@ function init(ledger){ledger.claims=ledger.claims||{codes:{},byCode:{},pending:{
 const day=()=>new Date().toISOString().slice(0,10);
 const isOpen=()=>C.OPEN&&!!C.TWEET;
 const codesOpen=()=>C.OPEN; // partial open: wallet binding and codes before the launch post exists; X checks stay off until CAMPAIGN_TWEET_ID is set
-function status(cl,wallet){const g=cl.granted[wallet];
+function status(cl,wallet,reveal){const g=cl.granted[wallet];
   return {wallet:wallet||null,open:isOpen(),codesOpen:codesOpen(),max:C.MAX,claimed:cl.count,remaining:Math.max(0,C.MAX-cl.count),soldOut:cl.count>=C.MAX,tweet:C.TWEET||null,minAgeDays:C.MIN_AGE_DAYS,minFollowers:C.MIN_FOLLOWERS,handle:C.HANDLE||null,bindMsg:wallet?bindMsg(wallet):null,copy:C.COPY,replyCopy:C.REPLY,
-    code:wallet&&codesOpen()?cl.codes[wallet]||null:null,pending:!!(wallet&&cl.pending[wallet]),granted:!!g,used:!!(g&&g.used),releaseOpen:process.env.FREE_RELEASE_OPEN==='1',reservedName:(g&&g.name)||cl.names[wallet]||null,claimNo:g?Object.values(cl.granted).filter(x=>x.at<=g.at).length:null,cardUrl:wallet&&cl.codes[wallet]?'/c/'+cl.codes[wallet]:null,lastPoll:(wallet&&cl.lastTry&&cl.lastTry[wallet])||null,pendingSince:wallet&&cl.pending[wallet]||null,reason:wallet?cl.reasons[wallet]||null:null};}
+    code:reveal&&wallet&&codesOpen()?cl.codes[wallet]||null:null,pending:!!(wallet&&cl.pending[wallet]),granted:!!g,used:!!(g&&g.used),releaseOpen:process.env.FREE_RELEASE_OPEN==='1',reservedName:(g&&g.name)||cl.names[wallet]||null,claimNo:g?Object.values(cl.granted).filter(x=>x.at<=g.at).length:null,cardUrl:reveal&&wallet&&cl.codes[wallet]?'/c/'+cl.codes[wallet]:null,lastPoll:(wallet&&cl.lastTry&&cl.lastTry[wallet])||null,pendingSince:wallet&&cl.pending[wallet]||null,reason:wallet?cl.reasons[wallet]||null:null};}
 function issue(cl,wallet,sig){if(!codesOpen())throw new Error('Free microbe claim opens at launch.');
-  if(!cl.codes[wallet]&&!verifySig(wallet,sig))throw new Error('Sign the message in your wallet to get your code.');
+  if(!verifySig(wallet,sig))throw new Error('Sign the message in your wallet to get your code.');
   if(cl.granted[wallet])return cl.codes[wallet];if(cl.count>=C.MAX)throw new Error('All free microbes have been claimed.');
   if(!cl.codes[wallet]){let c;do{c='SOUP'+crypto.randomBytes(4).toString('hex').toUpperCase().slice(0,6);}while(cl.byCode[c]);cl.codes[wallet]=c;cl.byCode[c]=wallet;}
   return cl.codes[wallet];}
 function check(cl,wallet){if(!isOpen())throw new Error('Free microbe claim opens at launch.');if(!cl.codes[wallet])throw new Error('Get your code first.');if(!cl.granted[wallet]&&cl.count>=C.MAX)throw new Error('All free microbes have been claimed.');
-  if(!cl.granted[wallet]){cl.pending[wallet]=Date.now();delete cl.reasons[wallet];}return status(cl,wallet);}
+  if(!cl.granted[wallet]){cl.pending[wallet]=Date.now();delete cl.reasons[wallet];}return status(cl,wallet,false);}
 async function search(query){
   if(C.MOCK)return JSON.parse(require('fs').readFileSync(C.MOCK,'utf8'));
   const u='https://api.x.com/2/tweets/search/recent?'+new URLSearchParams({query,max_results:'100','tweet.fields':'author_id,referenced_tweets,conversation_id,text,note_tweet',expansions:'author_id','user.fields':'created_at,public_metrics'});
