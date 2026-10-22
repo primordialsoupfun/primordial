@@ -39,10 +39,20 @@ function readCkptLines(){const fd=fs.openSync(SNAPL,'r');const buf=Buffer.alloc(
   try{while((n=fs.readSync(fd,buf,0,buf.length,null))>0){const parts=(rest+buf.toString('utf8',0,n)).split('\n');rest=parts.pop();
     for(const ln of parts){if(!ln)continue;if(ln==='"end"'){end=true;continue;}if(!hdr){hdr=JSON.parse(ln);if(hdr.seed!==ledger.seed||hdr.events>ledger.events.length)return null;w=P.World.fromBase(hdr.state);hdr.state=null;}else P.World.addSp(w,JSON.parse(ln));}}
     if(!end||!w)throw new Error('line checkpoint incomplete');}finally{fs.closeSync(fd);}return w;}
+// Old single JSON checkpoint, read in chunks: header up to "species":[ then one species element at a time.
+function readCkptOld(){const fd=fs.openSync(SNAP,'r');const buf=Buffer.alloc(1<<22);let t='',w=null,n,i=0,done=false,hs=null;
+  try{while(!done&&(n=fs.readSync(fd,buf,0,buf.length,null))>0){t=t.slice(i)+buf.toString('latin1',0,n);i=0;
+    if(!w){const k=t.indexOf('"species":[');if(k<0){i=0;continue;}const hdr=JSON.parse(Buffer.from(t.slice(0,k+11)+']}}','latin1').toString('utf8'));
+      if(hdr.seed!==ledger.seed||hdr.events>ledger.events.length)return null;hs=hdr.state;w=P.World.fromBase(Object.assign({},hs));i=k+11;}
+    for(;;){while(i<t.length&&(t[i]===','||t[i]===' '||t[i]==='\n'))i++;if(i>=t.length)break;if(t[i]===']'){done=true;let tail=t.slice(i+1);while((n=fs.readSync(fd,buf,0,buf.length,null))>0)tail+=buf.toString('latin1',0,n);
+        tail=tail.trim();const more=JSON.parse(Buffer.from('{"_":0'+tail.slice(0,-1),'latin1').toString('utf8'));delete more._;
+        if(Object.keys(more).length){const sp=w.species;w=P.World.fromBase(Object.assign(hs,more));w.species=sp;}break;}
+      let d=0,q=false,j=i;for(;j<t.length;j++){const c=t[j];if(q){if(c==='\\')j++;else if(c==='"')q=false;}else if(c==='"')q=true;else if(c==='{'||c==='[')d++;else if(c==='}'||c===']'){d--;if(d===0)break;}}
+      if(j>=t.length)break;P.World.addSp(w,JSON.parse(Buffer.from(t.slice(i,j+1),'latin1').toString('utf8')));i=j+1;}}
+    if(!done||!w)throw new Error('checkpoint incomplete');}finally{fs.closeSync(fd);}return w;}
 let resumed=false;
 try{if(fs.existsSync(SNAPL)){const w=readCkptLines();if(w){W=w;resumed=true;console.log('resumed from line checkpoint at tick',W.tick);}}}catch(e){console.error('line checkpoint unreadable',e.message);W=new P.World(ledger.seed,ledger.cfg);}
-if(!resumed)try{if(fs.existsSync(SNAP)){let sn=JSON.parse(fs.readFileSync(SNAP,'utf8'));if(sn.seed===ledger.seed&&sn.events<=ledger.events.length){const st=sn.state;sn=null;W=P.World.fromJSON(st);
-  console.log('resumed from checkpoint at tick',W.tick);}}}catch(e){console.error('checkpoint unreadable, replaying',e.message);W=new P.World(ledger.seed,ledger.cfg);}
+if(!resumed)try{if(fs.existsSync(SNAP)){const w=readCkptOld();if(w){W=w;console.log('resumed from checkpoint at tick',W.tick);}}}catch(e){console.error('checkpoint unreadable, replaying',e.message);W=new P.World(ledger.seed,ledger.cfg);}
 const target=ledger.lastTick||0;while(W.tick<target)stepWorld();
 // PvP (territory, hunting feed) switches on at a fixed tick recorded in the ledger, so older history replays unchanged.
 if(ledger.cfg.pvpFrom==null){ledger.cfg.pvpFrom=Math.ceil((W.tick+LEAD+600)/150)*150;save();}W.cfg.pvpFrom=ledger.cfg.pvpFrom;
